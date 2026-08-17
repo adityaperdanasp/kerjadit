@@ -2,6 +2,7 @@ import { Client } from '@notionhq/client';
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const DATA_SOURCE_ID = process.env.NOTION_DATA_SOURCE_ID!;
+const TASKS_DATA_SOURCE_ID = process.env.NOTION_TASKS_DATA_SOURCE_ID!;
 
 export type Contact = {
   id: string;
@@ -104,6 +105,67 @@ export async function updateContact(
     properties['Industri'] = { select: { name: fields.industri } };
   }
   await notion.pages.update({ page_id: pageId, properties: properties as any });
+}
+
+export type Task = {
+  id: string;
+  text: string;
+  done: boolean;
+};
+
+function checkboxVal(prop: unknown): boolean {
+  return (prop as { checkbox?: boolean })?.checkbox || false;
+}
+
+function pageToTask(page: any): Task {
+  const p = page.properties;
+  return {
+    id: page.id,
+    text: title(p['Task']),
+    done: checkboxVal(p['Done']),
+  };
+}
+
+export async function fetchAllTasks(): Promise<Task[]> {
+  const results: Task[] = [];
+  let cursor: string | undefined = undefined;
+  do {
+    const res: any = await notion.dataSources.query({
+      data_source_id: TASKS_DATA_SOURCE_ID,
+      start_cursor: cursor,
+      page_size: 100,
+      sorts: [{ timestamp: 'created_time', direction: 'ascending' }],
+    });
+    for (const page of res.results) results.push(pageToTask(page));
+    cursor = res.has_more ? res.next_cursor : undefined;
+  } while (cursor);
+  return results;
+}
+
+export async function createTask(text: string): Promise<Task> {
+  const page: any = await notion.pages.create({
+    parent: { data_source_id: TASKS_DATA_SOURCE_ID } as any,
+    properties: {
+      Task: { title: [{ text: { content: text.slice(0, 1900) } }] },
+      Done: { checkbox: false },
+    },
+  });
+  return pageToTask(page);
+}
+
+export async function updateTask(pageId: string, fields: Partial<{ text: string; done: boolean }>) {
+  const properties: Record<string, unknown> = {};
+  if (fields.text !== undefined) {
+    properties['Task'] = { title: [{ text: { content: fields.text.slice(0, 1900) } }] };
+  }
+  if (fields.done !== undefined) {
+    properties['Done'] = { checkbox: fields.done };
+  }
+  await notion.pages.update({ page_id: pageId, properties: properties as any });
+}
+
+export async function deleteTask(pageId: string) {
+  await notion.pages.update({ page_id: pageId, archived: true });
 }
 
 export const INDUSTRY_OPTIONS = [
