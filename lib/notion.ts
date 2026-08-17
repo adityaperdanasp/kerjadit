@@ -75,7 +75,14 @@ export async function fetchAllContacts(): Promise<Contact[]> {
 
 export async function updateContact(
   pageId: string,
-  fields: Partial<{ statusDeal: string; quotationNominal: number | null; onboardPlan: string }>
+  fields: Partial<{
+    statusDeal: string;
+    quotationNominal: number | null;
+    onboardPlan: string;
+    nama: string;
+    perusahaan: string;
+    industri: string;
+  }>
 ) {
   const properties: Record<string, unknown> = {};
   if (fields.statusDeal !== undefined) {
@@ -87,5 +94,25 @@ export async function updateContact(
   if (fields.onboardPlan !== undefined) {
     properties['Onboard Plan'] = { rich_text: [{ text: { content: fields.onboardPlan.slice(0, 1900) } }] };
   }
+  if (fields.nama !== undefined) {
+    properties['Nama'] = { title: [{ text: { content: fields.nama.slice(0, 1900) } }] };
+  }
+  if (fields.perusahaan !== undefined) {
+    properties['Perusahaan'] = { rich_text: [{ text: { content: fields.perusahaan.slice(0, 1900) } }] };
+  }
+  if (fields.industri !== undefined) {
+    properties['Industri'] = { select: { name: fields.industri } };
+  }
   await notion.pages.update({ page_id: pageId, properties: properties as any });
 }
+
+export const INDUSTRY_OPTIONS = [
+  'Oil & Gas',
+  'Banking',
+  'Manufacturing',
+  'Insurance',
+  'Healthcare',
+  'Government',
+  'Other',
+  'Unknown',
+];

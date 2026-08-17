@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { Contact } from '@/lib/notion';
+import { INDUSTRY_OPTIONS, type Contact } from '@/lib/notion';
 
 const STATUSES = ['Hot', 'Warm', 'Cold', 'Win', 'Lost'] as const;
 type Status = (typeof STATUSES)[number];
@@ -59,6 +59,11 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
 
   function updateLocal(id: string, fields: Partial<Contact>) {
     setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...fields } : c)));
+  }
+
+  function handleFieldChange(id: string, fields: Record<string, unknown>) {
+    updateLocal(id, fields as Partial<Contact>);
+    patchContact(id, fields);
   }
 
   function handleDrop(status: Status) {
@@ -147,37 +152,7 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
             </thead>
             <tbody>
               {pool.map((c) => (
-                <tr
-                  key={c.id}
-                  draggable
-                  onDragStart={() => setDragId(c.id)}
-                  style={{ cursor: 'grab', borderBottom: '1px solid var(--border)' }}
-                >
-                  <td style={tdStyle}>
-                    <div style={{ fontWeight: 700 }}>{c.nama}</div>
-                    {c.perusahaan && (
-                      <div style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-faint)' }}>
-                        {c.perusahaan}
-                      </div>
-                    )}
-                  </td>
-                  <td style={tdStyle}>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        padding: '2px 8px',
-                        borderRadius: 100,
-                        background: 'var(--panel-2)',
-                        color: 'var(--text-dim)',
-                      }}
-                    >
-                      {c.industri || 'Unknown'}
-                    </span>
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                    {c.hariSejakChat ?? '-'}
-                  </td>
-                </tr>
+                <PoolRow key={c.id} contact={c} onDragStart={() => setDragId(c.id)} onFieldChange={handleFieldChange} />
               ))}
             </tbody>
           </table>
@@ -195,12 +170,9 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
             key={status}
             status={status}
             deals={byStatus[status]}
-              onDrop={() => handleDrop(status)}
-              onFieldChange={(id, fields) => {
-                updateLocal(id, fields);
-                patchContact(id, fields);
-              }}
-            />
+            onDrop={() => handleDrop(status)}
+            onFieldChange={handleFieldChange}
+          />
         ))}
       </div>
     </div>
@@ -266,7 +238,7 @@ function Column({
   status: Status;
   deals: Contact[];
   onDrop: () => void;
-  onFieldChange: (id: string, fields: Partial<Contact>) => void;
+  onFieldChange: (id: string, fields: Record<string, unknown>) => void;
 }) {
   const [over, setOver] = useState(false);
   const colorMap: Record<Status, string> = {
@@ -356,12 +328,14 @@ function DealCard({
   onFieldChange,
 }: {
   contact: Contact;
-  onFieldChange: (id: string, fields: Partial<Contact>) => void;
+  onFieldChange: (id: string, fields: Record<string, unknown>) => void;
 }) {
   const [quotationText, setQuotationText] = useState(
     contact.quotationNominal ? formatRupiah(contact.quotationNominal) : ''
   );
   const [onboardPlan, setOnboardPlan] = useState(contact.onboardPlan);
+  const [nama, setNama] = useState(contact.nama);
+  const [perusahaan, setPerusahaan] = useState(contact.perusahaan);
 
   return (
     <div
@@ -374,12 +348,32 @@ function DealCard({
         fontSize: 12,
       }}
     >
-      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{contact.nama}</div>
-      {contact.perusahaan && (
-        <div style={{ fontSize: 11, color: 'var(--text-faint)', marginBottom: 6 }}>
-          {contact.perusahaan}
-        </div>
-      )}
+      <input
+        value={nama}
+        onChange={(e) => setNama(e.target.value)}
+        onBlur={() => onFieldChange(contact.id, { nama })}
+        style={{ ...nameInputStyle, marginBottom: 4 }}
+      />
+      <input
+        value={perusahaan}
+        onChange={(e) => setPerusahaan(e.target.value)}
+        onBlur={() => onFieldChange(contact.id, { perusahaan })}
+        placeholder="Nama perusahaan"
+        style={{ ...nameInputStyle, fontWeight: 400, fontSize: 11, color: 'var(--text-faint)', marginBottom: 6 }}
+      />
+      <Field label="Industri">
+        <select
+          value={contact.industri || 'Unknown'}
+          onChange={(e) => onFieldChange(contact.id, { industri: e.target.value })}
+          style={fieldInputStyle}
+        >
+          {INDUSTRY_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      </Field>
       <Field label="Quotation">
         <input
           value={quotationText}
@@ -441,3 +435,69 @@ const fieldInputStyle: React.CSSProperties = {
   padding: '4px 6px',
   textAlign: 'right',
 };
+
+const nameInputStyle: React.CSSProperties = {
+  width: '100%',
+  border: '1px solid transparent',
+  borderRadius: 6,
+  background: 'transparent',
+  color: 'var(--text)',
+  fontWeight: 700,
+  fontSize: 13,
+  padding: '2px 4px',
+};
+
+function PoolRow({
+  contact,
+  onDragStart,
+  onFieldChange,
+}: {
+  contact: Contact;
+  onDragStart: () => void;
+  onFieldChange: (id: string, fields: Record<string, unknown>) => void;
+}) {
+  const [nama, setNama] = useState(contact.nama);
+
+  return (
+    <tr draggable onDragStart={onDragStart} style={{ cursor: 'grab', borderBottom: '1px solid var(--border)' }}>
+      <td style={tdStyle}>
+        <input
+          value={nama}
+          onChange={(e) => setNama(e.target.value)}
+          onBlur={() => onFieldChange(contact.id, { nama })}
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{ ...nameInputStyle, marginBottom: 2 }}
+        />
+        {contact.perusahaan && (
+          <div style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-faint)', padding: '0 4px' }}>
+            {contact.perusahaan}
+          </div>
+        )}
+      </td>
+      <td style={tdStyle}>
+        <select
+          value={contact.industri || 'Unknown'}
+          onChange={(e) => onFieldChange(contact.id, { industri: e.target.value })}
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            fontSize: 11,
+            padding: '3px 6px',
+            borderRadius: 100,
+            background: 'var(--panel-2)',
+            color: 'var(--text-dim)',
+            border: '1px solid var(--border)',
+          }}
+        >
+          {INDUSTRY_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td style={{ ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+        {contact.hariSejakChat ?? '-'}
+      </td>
+    </tr>
+  );
+}
