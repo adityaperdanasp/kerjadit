@@ -111,6 +111,7 @@ export type Task = {
   id: string;
   text: string;
   done: boolean;
+  group: string;
 };
 
 function checkboxVal(prop: unknown): boolean {
@@ -123,6 +124,7 @@ function pageToTask(page: any): Task {
     id: page.id,
     text: title(p['Task']),
     done: checkboxVal(p['Done']),
+    group: selectName(p['Group']) || 'Lainnya',
   };
 }
 
@@ -142,24 +144,31 @@ export async function fetchAllTasks(): Promise<Task[]> {
   return results;
 }
 
-export async function createTask(text: string): Promise<Task> {
+export async function createTask(text: string, group: string): Promise<Task> {
   const page: any = await notion.pages.create({
     parent: { data_source_id: TASKS_DATA_SOURCE_ID } as any,
     properties: {
       Task: { title: [{ text: { content: text.slice(0, 1900) } }] },
       Done: { checkbox: false },
+      Group: { select: { name: group.slice(0, 100) } },
     },
   });
   return pageToTask(page);
 }
 
-export async function updateTask(pageId: string, fields: Partial<{ text: string; done: boolean }>) {
+export async function updateTask(
+  pageId: string,
+  fields: Partial<{ text: string; done: boolean; group: string }>
+) {
   const properties: Record<string, unknown> = {};
   if (fields.text !== undefined) {
     properties['Task'] = { title: [{ text: { content: fields.text.slice(0, 1900) } }] };
   }
   if (fields.done !== undefined) {
     properties['Done'] = { checkbox: fields.done };
+  }
+  if (fields.group !== undefined) {
+    properties['Group'] = { select: { name: fields.group.slice(0, 100) } };
   }
   await notion.pages.update({ page_id: pageId, properties: properties as any });
 }

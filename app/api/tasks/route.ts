@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 import { createTask } from '@/lib/notion';
 
 export async function POST(request: Request) {
-  const { text } = await request.json();
-  if (!text || !text.trim()) {
+  const { text, group } = await request.json();
+  if (!text || !text.trim() || !group || !group.trim()) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
   try {
-    const task = await createTask(text.trim());
+    const task = await createTask(text.trim(), group.trim());
     return NextResponse.json({ ok: true, task });
   } catch (err) {
     console.error(err);
