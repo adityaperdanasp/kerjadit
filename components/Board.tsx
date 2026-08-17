@@ -25,20 +25,22 @@ async function patchContact(id: string, fields: Record<string, unknown>) {
 export default function Board({ initialContacts }: { initialContacts: Contact[] }) {
   const [contacts, setContacts] = useState(initialContacts);
   const [search, setSearch] = useState('');
+  const [clusterFilter, setClusterFilter] = useState('Semua');
   const [dragId, setDragId] = useState<string | null>(null);
 
   const pool = useMemo(() => {
-    const unassigned = contacts.filter((c) => !c.statusDeal);
+    let unassigned = contacts.filter((c) => !c.statusDeal);
+    if (clusterFilter !== 'Semua') {
+      unassigned = unassigned.filter((c) => (c.cluster || 'Cold') === clusterFilter);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
-      return unassigned.filter(
+      unassigned = unassigned.filter(
         (c) => c.nama.toLowerCase().includes(q) || c.perusahaan.toLowerCase().includes(q)
       );
     }
-    return unassigned
-      .filter((c) => c.cluster === 'Hot' || c.cluster === 'Warm')
-      .slice(0, 40);
-  }, [contacts, search]);
+    return unassigned;
+  }, [contacts, search, clusterFilter]);
 
   const byStatus = useMemo(() => {
     const map: Record<Status, Contact[]> = { Hot: [], Warm: [], Cold: [], Win: [], Lost: [] };
@@ -128,18 +130,42 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
           >
             Belum Diklasifikasi
           </h2>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama / perusahaan…"
-            style={{
-              width: 220,
-              padding: '6px 9px',
-              borderRadius: 8,
-              border: '1px solid var(--border)',
-              fontSize: 12.5,
-            }}
-          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select
+              value={clusterFilter}
+              onChange={(e) => setClusterFilter(e.target.value)}
+              style={{
+                padding: '6px 9px',
+                borderRadius: 8,
+                border: '1px solid var(--border)',
+                fontSize: 12.5,
+                background: 'var(--panel)',
+                color: 'var(--text)',
+              }}
+            >
+              <option value="Semua">Semua Cluster</option>
+              <option value="Hot">Hot</option>
+              <option value="Warm">Warm</option>
+              <option value="Cold">Cold</option>
+            </select>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Cari nama / perusahaan…"
+              style={{
+                width: 220,
+                padding: '6px 9px',
+                borderRadius: 8,
+                border: '1px solid var(--border)',
+                fontSize: 12.5,
+              }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>
+            {pool.length} kontak
+          </span>
         </div>
         <div style={{ maxHeight: 340, overflowY: 'auto', overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
