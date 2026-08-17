@@ -1,0 +1,409 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import type { Contact } from '@/lib/notion';
+
+const STATUSES = ['Hot', 'Warm', 'Cold', 'Win', 'Lost'] as const;
+type Status = (typeof STATUSES)[number];
+
+function formatRupiah(n: number | null | undefined) {
+  return 'Rp ' + (n || 0).toLocaleString('id-ID');
+}
+function parseRupiah(str: string) {
+  const digits = str.replace(/[^0-9]/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+}
+
+async function patchContact(id: string, fields: Record<string, unknown>) {
+  await fetch(`/api/contacts/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(fields),
+  });
+}
+
+export default function Board({ initialContacts }: { initialContacts: Contact[] }) {
+  const [contacts, setContacts] = useState(initialContacts);
+  const [search, setSearch] = useState('');
+  const [dragId, setDragId] = useState<string | null>(null);
+
+  const pool = useMemo(() => {
+    const unassigned = contacts.filter((c) => !c.statusDeal);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      return unassigned.filter(
+        (c) => c.nama.toLowerCase().includes(q) || c.perusahaan.toLowerCase().includes(q)
+      );
+    }
+    return unassigned
+      .filter((c) => c.cluster === 'Hot' || c.cluster === 'Warm')
+      .slice(0, 40);
+  }, [contacts, search]);
+
+  const byStatus = useMemo(() => {
+    const map: Record<Status, Contact[]> = { Hot: [], Warm: [], Cold: [], Win: [], Lost: [] };
+    for (const c of contacts) {
+      if (c.statusDeal && STATUSES.includes(c.statusDeal as Status)) {
+        map[c.statusDeal as Status].push(c);
+      }
+    }
+    return map;
+  }, [contacts]);
+
+  const stats = useMemo(() => {
+    const winValue = byStatus.Win.reduce((s, c) => s + (c.quotationNominal || 0), 0);
+    const hotValue = byStatus.Hot.reduce((s, c) => s + (c.quotationNominal || 0), 0);
+    const profit = Math.round(hotValue * 0.35);
+    return { winValue, hotValue, winProfit: profit, hotProfit: profit };
+  }, [byStatus]);
+
+  function updateLocal(id: string, fields: Partial<Contact>) {
+    setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...fields } : c)));
+  }
+
+  function handleDrop(status: Status) {
+    if (!dragId) return;
+    updateLocal(dragId, { statusDeal: status });
+    patchContact(dragId, { statusDeal: status });
+    setDragId(null);
+  }
+
+  return (
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 26px 60px' }}>
+      <div style={{ marginBottom: 18 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: 'var(--text)' }}>
+          Pipeline B2B
+        </h1>
+        <span style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>
+          Drag kontak ke kolom status untuk mulai kelola deal
+        </span>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: 12,
+          marginBottom: 20,
+        }}
+      >
+        <StatCard label="Win Value" value={formatRupiah(stats.winValue)} bg="var(--teal)" />
+        <StatCard label="Hot Value" value={formatRupiah(stats.hotValue)} bg="var(--orange)" />
+        <StatCard
+          label="Win Profit"
+          sub="(35% dari Hot Value)"
+          value={formatRupiah(stats.winProfit)}
+        />
+        <StatCard
+          label="Est Hot Profit"
+          sub="(35% dari Hot Value)"
+          value={formatRupiah(stats.hotProfit)}
+        />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 14, alignItems: 'start' }}>
+        <div
+          style={{
+            background: 'var(--panel)',
+            border: '1px solid var(--border)',
+            borderRadius: 14,
+            padding: 14,
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 11,
+              textTransform: 'uppercase',
+              letterSpacing: '.05em',
+              color: 'var(--text-faint)',
+              margin: '0 0 10px',
+              fontWeight: 700,
+            }}
+          >
+            Belum Diklasifikasi
+          </h2>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Cari nama / perusahaan…"
+            style={{
+              width: '100%',
+              padding: '7px 9px',
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              fontSize: 12.5,
+              marginBottom: 10,
+            }}
+          />
+          <div style={{ maxHeight: 560, overflowY: 'auto' }}>
+            {pool.map((c) => (
+              <div
+                key={c.id}
+                draggable
+                onDragStart={() => setDragId(c.id)}
+                style={{
+                  padding: '9px 11px',
+                  borderRadius: 9,
+                  background: 'var(--panel-2)',
+                  border: '1px solid var(--border)',
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  marginBottom: 7,
+                  cursor: 'grab',
+                }}
+              >
+                {c.nama}
+                {c.perusahaan ? (
+                  <div style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-faint)' }}>
+                    {c.perusahaan}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+            {pool.length === 0 && (
+              <p style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>
+                Tidak ada kontak yang cocok.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+          {STATUSES.map((status) => (
+            <Column
+              key={status}
+              status={status}
+              deals={byStatus[status]}
+              onDrop={() => handleDrop(status)}
+              onFieldChange={(id, fields) => {
+                updateLocal(id, fields);
+                patchContact(id, fields);
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  sub,
+  value,
+  bg,
+}: {
+  label: string;
+  sub?: string;
+  value: string;
+  bg?: string;
+}) {
+  return (
+    <div
+      style={{
+        borderRadius: 14,
+        padding: '16px 18px',
+        background: bg || 'var(--panel)',
+        color: bg ? '#fff' : 'var(--text)',
+        border: bg ? 'none' : '1px solid var(--border)',
+      }}
+    >
+      <div style={{ fontSize: 11, opacity: bg ? 0.85 : 1, color: bg ? '#fff' : 'var(--text-faint)' }}>
+        {label}
+        {sub && (
+          <span style={{ display: 'block', fontSize: 9.5, fontWeight: 500, opacity: 0.75, marginTop: 1 }}>
+            {sub}
+          </span>
+        )}
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 800, marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function Column({
+  status,
+  deals,
+  onDrop,
+  onFieldChange,
+}: {
+  status: Status;
+  deals: Contact[];
+  onDrop: () => void;
+  onFieldChange: (id: string, fields: Partial<Contact>) => void;
+}) {
+  const [over, setOver] = useState(false);
+  const colorMap: Record<Status, string> = {
+    Hot: 'var(--red)',
+    Warm: 'var(--orange)',
+    Cold: 'var(--blue)',
+    Win: 'var(--green)',
+    Lost: 'var(--text-faint)',
+  };
+  const emojiMap: Record<Status, string> = {
+    Hot: '🔥',
+    Warm: '🟡',
+    Cold: '❄️',
+    Win: '✅',
+    Lost: '⬜',
+  };
+
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setOver(false);
+        onDrop();
+      }}
+      style={{
+        background: over ? 'var(--panel-2)' : 'var(--panel)',
+        border: '1px solid var(--border)',
+        borderRadius: 14,
+        padding: 12,
+        minHeight: 160,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span
+          style={{
+            fontSize: 11.5,
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            letterSpacing: '.04em',
+            color: colorMap[status],
+          }}
+        >
+          {emojiMap[status]} {status}
+        </span>
+        <span
+          style={{
+            fontSize: 10.5,
+            fontWeight: 700,
+            color: 'var(--text-faint)',
+            background: 'var(--panel-2)',
+            padding: '2px 7px',
+            borderRadius: 100,
+          }}
+        >
+          {deals.length}
+        </span>
+      </div>
+
+      {deals.map((c) => (
+        <DealCard key={c.id} contact={c} onFieldChange={onFieldChange} />
+      ))}
+      {deals.length === 0 && (
+        <div
+          style={{
+            fontSize: 11,
+            color: 'var(--text-faint)',
+            textAlign: 'center',
+            padding: '18px 6px',
+            border: '1px dashed var(--border)',
+            borderRadius: 10,
+          }}
+        >
+          Drop di sini
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DealCard({
+  contact,
+  onFieldChange,
+}: {
+  contact: Contact;
+  onFieldChange: (id: string, fields: Partial<Contact>) => void;
+}) {
+  const [quotationText, setQuotationText] = useState(
+    contact.quotationNominal ? formatRupiah(contact.quotationNominal) : ''
+  );
+  const [onboardPlan, setOnboardPlan] = useState(contact.onboardPlan);
+
+  return (
+    <div
+      style={{
+        background: 'var(--panel-2)',
+        border: '1px solid var(--border)',
+        borderRadius: 10,
+        padding: '10px 11px',
+        marginBottom: 8,
+        fontSize: 12,
+      }}
+    >
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{contact.nama}</div>
+      {contact.perusahaan && (
+        <div style={{ fontSize: 11, color: 'var(--text-faint)', marginBottom: 6 }}>
+          {contact.perusahaan}
+        </div>
+      )}
+      <Field label="Quotation">
+        <input
+          value={quotationText}
+          onChange={(e) => setQuotationText(e.target.value)}
+          onBlur={() => {
+            const n = parseRupiah(quotationText);
+            setQuotationText(n ? formatRupiah(n) : '');
+            onFieldChange(contact.id, { quotationNominal: n });
+          }}
+          placeholder="Rp 0"
+          style={fieldInputStyle}
+        />
+      </Field>
+      <Field label="Onboard Plan">
+        <input
+          value={onboardPlan}
+          onChange={(e) => setOnboardPlan(e.target.value)}
+          onBlur={() => onFieldChange(contact.id, { onboardPlan })}
+          placeholder="mis. Q3 2026"
+          style={fieldInputStyle}
+        />
+      </Field>
+      {contact.ringkasan && (
+        <div style={{ marginTop: 6, fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.4 }}>
+          {contact.ringkasan}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, marginTop: 4 }}>
+      <label
+        style={{
+          color: 'var(--text-faint)',
+          fontSize: 10,
+          textTransform: 'uppercase',
+          letterSpacing: '.03em',
+          flexShrink: 0,
+          paddingTop: 2,
+        }}
+      >
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+const fieldInputStyle: React.CSSProperties = {
+  flex: 1,
+  border: '1px solid var(--border)',
+  borderRadius: 6,
+  background: 'var(--panel)',
+  color: 'var(--text)',
+  fontSize: 11.5,
+  padding: '4px 6px',
+  textAlign: 'right',
+};
