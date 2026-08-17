@@ -77,11 +77,11 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
 
   return (
     <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 26px 60px' }}>
-      <div style={{ marginBottom: 18 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: 'var(--text)' }}>
+      <div style={{ marginBottom: 22, textAlign: 'center' }}>
+        <h1 style={{ fontSize: 30, fontWeight: 800, margin: 0, color: 'var(--text)', letterSpacing: '-.01em' }}>
           Pipeline B2B
         </h1>
-        <span style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>
+        <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>
           Drag kontak ke kolom status untuk mulai kelola deal
         </span>
       </div>
@@ -117,19 +117,7 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
           marginBottom: 14,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <h2
-            style={{
-              fontSize: 11,
-              textTransform: 'uppercase',
-              letterSpacing: '.05em',
-              color: 'var(--text-faint)',
-              margin: 0,
-              fontWeight: 700,
-            }}
-          >
-            Belum Diklasifikasi
-          </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 10 }}>
           <div style={{ display: 'flex', gap: 8 }}>
             <select
               value={clusterFilter}
