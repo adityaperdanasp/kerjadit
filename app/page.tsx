@@ -1,9 +1,5 @@
-import { fetchAllContacts } from '@/lib/notion';
-import Board from '@/components/Board';
+import { redirect } from 'next/navigation';
 
-export const revalidate = 30;
-
-export default async function Home() {
-  const contacts = await fetchAllContacts();
-  return <Board initialContacts={contacts} />;
+export default function Home() {
+  redirect('/sirka');
 }
