@@ -101,22 +101,23 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 14, alignItems: 'start' }}>
-        <div
-          style={{
-            background: 'var(--panel)',
-            border: '1px solid var(--border)',
-            borderRadius: 14,
-            padding: 14,
-          }}
-        >
+      <div
+        style={{
+          background: 'var(--panel)',
+          border: '1px solid var(--border)',
+          borderRadius: 14,
+          padding: 14,
+          marginBottom: 14,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <h2
             style={{
               fontSize: 11,
               textTransform: 'uppercase',
               letterSpacing: '.05em',
               color: 'var(--text-faint)',
-              margin: '0 0 10px',
+              margin: 0,
               fontWeight: 700,
             }}
           >
@@ -127,65 +128,98 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari nama / perusahaan…"
             style={{
-              width: '100%',
-              padding: '7px 9px',
+              width: 220,
+              padding: '6px 9px',
               borderRadius: 8,
               border: '1px solid var(--border)',
               fontSize: 12.5,
-              marginBottom: 10,
             }}
           />
-          <div style={{ maxHeight: 560, overflowY: 'auto' }}>
-            {pool.map((c) => (
-              <div
-                key={c.id}
-                draggable
-                onDragStart={() => setDragId(c.id)}
-                style={{
-                  padding: '9px 11px',
-                  borderRadius: 9,
-                  background: 'var(--panel-2)',
-                  border: '1px solid var(--border)',
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  marginBottom: 7,
-                  cursor: 'grab',
-                }}
-              >
-                {c.nama}
-                {c.perusahaan ? (
-                  <div style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-faint)' }}>
-                    {c.perusahaan}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-            {pool.length === 0 && (
-              <p style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>
-                Tidak ada kontak yang cocok.
-              </p>
-            )}
-          </div>
         </div>
+        <div style={{ maxHeight: 340, overflowY: 'auto', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Nama</th>
+                <th style={thStyle}>Industri</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Hari</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pool.map((c) => (
+                <tr
+                  key={c.id}
+                  draggable
+                  onDragStart={() => setDragId(c.id)}
+                  style={{ cursor: 'grab', borderBottom: '1px solid var(--border)' }}
+                >
+                  <td style={tdStyle}>
+                    <div style={{ fontWeight: 700 }}>{c.nama}</div>
+                    {c.perusahaan && (
+                      <div style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-faint)' }}>
+                        {c.perusahaan}
+                      </div>
+                    )}
+                  </td>
+                  <td style={tdStyle}>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        padding: '2px 8px',
+                        borderRadius: 100,
+                        background: 'var(--panel-2)',
+                        color: 'var(--text-dim)',
+                      }}
+                    >
+                      {c.industri || 'Unknown'}
+                    </span>
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                    {c.hariSejakChat ?? '-'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {pool.length === 0 && (
+            <p style={{ fontSize: 11.5, color: 'var(--text-faint)', padding: '10px 4px' }}>
+              Tidak ada kontak yang cocok.
+            </p>
+          )}
+        </div>
+      </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
-          {STATUSES.map((status) => (
-            <Column
-              key={status}
-              status={status}
-              deals={byStatus[status]}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+        {STATUSES.map((status) => (
+          <Column
+            key={status}
+            status={status}
+            deals={byStatus[status]}
               onDrop={() => handleDrop(status)}
               onFieldChange={(id, fields) => {
                 updateLocal(id, fields);
                 patchContact(id, fields);
               }}
             />
-          ))}
-        </div>
+        ))}
       </div>
     </div>
   );
 }
+
+const thStyle: React.CSSProperties = {
+  textAlign: 'left',
+  fontSize: 10.5,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  color: 'var(--text-faint)',
+  padding: '6px 8px',
+  borderBottom: '1px solid var(--border)',
+};
+const tdStyle: React.CSSProperties = {
+  padding: '8px 8px',
+  verticalAlign: 'top',
+};
 
 function StatCard({
   label,
