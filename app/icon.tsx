@@ -13,12 +13,10 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#0d9488',
-          borderRadius: 7,
-          fontSize: 20,
+          fontSize: 30,
         }}
       >
-        💼
+        💸
       </div>
     ),
     { ...size }
