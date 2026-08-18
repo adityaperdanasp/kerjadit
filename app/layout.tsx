@@ -32,6 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={plusJakarta.variable}
     >
       <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <script
           dangerouslySetInnerHTML={{
             __html: `try{var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}`,
