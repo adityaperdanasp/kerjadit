@@ -1,0 +1,170 @@
+import type { SpmGroup, PettyCashRow } from '@/lib/sheets';
+
+const panelStyle: React.CSSProperties = {
+  background: 'var(--panel)',
+  border: '1px solid var(--border)',
+  borderRadius: 14,
+  padding: 16,
+  marginBottom: 16,
+};
+
+const thStyle: React.CSSProperties = {
+  textAlign: 'left',
+  fontSize: 10.5,
+  textTransform: 'uppercase',
+  letterSpacing: '.04em',
+  color: 'var(--text-faint)',
+  padding: '6px 8px',
+  borderBottom: '1px solid var(--border)',
+  whiteSpace: 'nowrap',
+};
+const tdStyle: React.CSSProperties = {
+  padding: '7px 8px',
+  fontSize: 12.5,
+  borderBottom: '1px solid var(--border)',
+  verticalAlign: 'top',
+};
+
+function StatusBadge({ value }: { value: string }) {
+  const ok = value.trim().toUpperCase() === 'SUDAH';
+  return (
+    <span
+      style={{
+        fontSize: 11,
+        fontWeight: 700,
+        padding: '2px 8px',
+        borderRadius: 100,
+        color: ok ? '#fff' : 'var(--text-faint)',
+        background: ok ? 'var(--green)' : 'var(--panel-2)',
+      }}
+    >
+      {value.trim() || 'Belum'}
+    </span>
+  );
+}
+
+function NotaLink({ url }: { url: string }) {
+  if (!url.trim()) return <span style={{ color: 'var(--text-faint)' }}>-</span>;
+  return (
+    <a
+      href={url.trim()}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{ fontSize: 11.5, color: 'var(--teal)', fontWeight: 700, textDecoration: 'none' }}
+    >
+      🧾 Lihat
+    </a>
+  );
+}
+
+export function SpmMonthTable({ group }: { group: SpmGroup }) {
+  return (
+    <div style={panelStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <h2 style={{ fontSize: 13, fontWeight: 800, margin: 0, color: 'var(--text)' }}>{group.label}</h2>
+        <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{group.rows.length} transaksi</span>
+      </div>
+      {group.error ? (
+        <p style={{ fontSize: 12, color: 'var(--red)' }}>Gagal ambil data tab {group.label}.</p>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Kode</th>
+                <th style={thStyle}>Keterangan</th>
+                <th style={thStyle}>Maker</th>
+                <th style={thStyle}>Approved</th>
+                <th style={thStyle}>Nota</th>
+              </tr>
+            </thead>
+            <tbody>
+              {group.rows.map((r, i) => (
+                <tr key={i}>
+                  <td style={{ ...tdStyle, whiteSpace: 'nowrap', fontWeight: 700 }}>{r.kode}</td>
+                  <td style={tdStyle}>{r.keterangan}</td>
+                  <td style={tdStyle}>
+                    <StatusBadge value={r.maker} />
+                  </td>
+                  <td style={tdStyle}>
+                    <StatusBadge value={r.approved} />
+                  </td>
+                  <td style={tdStyle}>
+                    <NotaLink url={r.linkNota} />
+                  </td>
+                </tr>
+              ))}
+              {group.rows.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ ...tdStyle, color: 'var(--text-faint)', textAlign: 'center' }}>
+                    Tidak ada data.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function PettyCashTable({
+  title,
+  rows,
+  error,
+}: {
+  title: string;
+  rows: PettyCashRow[];
+  error: boolean;
+}) {
+  return (
+    <div style={panelStyle}>
+      <h2 style={{ fontSize: 13, fontWeight: 800, margin: '0 0 10px', color: 'var(--text)' }}>{title}</h2>
+      {error ? (
+        <p style={{ fontSize: 12, color: 'var(--red)' }}>Gagal ambil data Petty Cash.</p>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Tanggal</th>
+                <th style={thStyle}>Keterangan</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Debit</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Kredit</th>
+                <th style={{ ...thStyle, textAlign: 'right' }}>Saldo</th>
+                <th style={thStyle}>Nota</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const isBalanceRow = /saldo/i.test(r.tanggal);
+                return (
+                  <tr key={i} style={isBalanceRow ? { background: 'var(--panel-2)' } : undefined}>
+                    <td style={{ ...tdStyle, fontWeight: isBalanceRow ? 800 : 400, whiteSpace: 'nowrap' }}>
+                      {r.tanggal}
+                    </td>
+                    <td style={tdStyle}>{r.keterangan}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right' }}>{r.debit}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right' }}>{r.kredit}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 800 }}>{r.saldo}</td>
+                    <td style={tdStyle}>
+                      <NotaLink url={r.linkNota} />
+                    </td>
+                  </tr>
+                );
+              })}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ ...tdStyle, color: 'var(--text-faint)', textAlign: 'center' }}>
+                    Tidak ada data.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}

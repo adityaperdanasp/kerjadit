@@ -1,28 +1,35 @@
-export default function MbgPage() {
+import { fetchSpmData, fetchPettyCash } from '@/lib/sheets';
+import { SpmMonthTable, PettyCashTable } from '@/components/MbgTables';
+
+export const revalidate = 30;
+
+export default async function MbgPage() {
+  const [spmGroups, pettyCash] = await Promise.all([fetchSpmData(), fetchPettyCash()]);
+
   return (
-    <div
-      style={{
-        maxWidth: 1280,
-        margin: '0 auto',
-        padding: '24px 26px 60px',
-      }}
-    >
-      <div
-        style={{
-          background: 'var(--panel)',
-          border: '1px solid var(--border)',
-          borderRadius: 14,
-          padding: '60px 20px',
-          textAlign: 'center',
-        }}
-      >
-        <h1 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: 'var(--text)' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(16px,4vw,24px) clamp(14px,4vw,26px) 60px' }}>
+      <div style={{ marginBottom: 22, textAlign: 'center' }}>
+        <h1
+          style={{
+            fontSize: 'clamp(22px, 6vw, 30px)',
+            fontWeight: 800,
+            margin: 0,
+            color: 'var(--text)',
+            letterSpacing: '-.01em',
+          }}
+        >
           MBG
         </h1>
-        <p style={{ fontSize: 13, color: 'var(--text-faint)', marginTop: 8 }}>
-          Coming soon.
-        </p>
+        <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>
+          SPM &amp; Petty Cash — SPPG Cengkareng Timur 2
+        </span>
       </div>
+
+      {spmGroups.map((g) => (
+        <SpmMonthTable key={g.label} group={g} />
+      ))}
+
+      <PettyCashTable title={pettyCash.title} rows={pettyCash.rows} error={pettyCash.error} />
     </div>
   );
 }
