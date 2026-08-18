@@ -59,6 +59,12 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
     return { winValue, hotValue, winProfit: profit, hotProfit: profit };
   }, [byStatus]);
 
+  const staleDeals = useMemo(() => {
+    return [...byStatus.Hot, ...byStatus.Warm]
+      .filter((c) => (c.hariSejakChat ?? 0) > 7)
+      .sort((a, b) => (b.hariSejakChat ?? 0) - (a.hariSejakChat ?? 0));
+  }, [byStatus]);
+
   function updateLocal(id: string, fields: Partial<Contact>) {
     setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, ...fields } : c)));
   }
@@ -76,9 +82,17 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '24px 26px 60px' }}>
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(16px,4vw,24px) clamp(14px,4vw,26px) 60px' }}>
       <div style={{ marginBottom: 22, textAlign: 'center' }}>
-        <h1 style={{ fontSize: 30, fontWeight: 800, margin: 0, color: 'var(--text)', letterSpacing: '-.01em' }}>
+        <h1
+          style={{
+            fontSize: 'clamp(22px, 6vw, 30px)',
+            fontWeight: 800,
+            margin: 0,
+            color: 'var(--text)',
+            letterSpacing: '-.01em',
+          }}
+        >
           Pipeline B2B
         </h1>
         <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>
@@ -86,14 +100,40 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
         </span>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 12,
-          marginBottom: 20,
-        }}
-      >
+      {staleDeals.length > 0 && (
+        <div
+          style={{
+            background: '#fdf1e8',
+            border: '1px solid #f0cba5',
+            borderRadius: 12,
+            padding: '12px 14px',
+            marginBottom: 16,
+          }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#8a4a1c', marginBottom: 6 }}>
+            ⚠️ {staleDeals.length} deal belum di-follow-up &gt;7 hari
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {staleDeals.map((c) => (
+              <span
+                key={c.id}
+                style={{
+                  fontSize: 11.5,
+                  background: '#fff',
+                  border: '1px solid #f0cba5',
+                  color: '#8a4a1c',
+                  padding: '3px 9px',
+                  borderRadius: 100,
+                }}
+              >
+                {c.nama} · {c.hariSejakChat}h
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="stats-grid" style={{ marginBottom: 20 }}>
         <StatCard label="Win Value" value={formatRupiah(stats.winValue)} bg="var(--teal)" />
         <StatCard label="Hot Value" value={formatRupiah(stats.hotValue)} bg="var(--orange)" />
         <StatCard
@@ -117,8 +157,8 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
           marginBottom: 14,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 10 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <select
               value={clusterFilter}
               onChange={(e) => setClusterFilter(e.target.value)}
@@ -178,7 +218,7 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+      <div className="status-grid">
         {STATUSES.map((status) => (
           <Column
             key={status}

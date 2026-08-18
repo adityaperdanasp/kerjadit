@@ -10,7 +10,7 @@ export default async function SirkaPage() {
     <>
       <Board initialContacts={contacts} />
       <div style={{ maxWidth: 1280, margin: '0 auto', padding: '0 26px 60px' }}>
-        <TaskList initialTasks={tasks} />
+        <TaskList initialTasks={tasks} contacts={contacts} />
       </div>
     </>
   );

@@ -112,10 +112,21 @@ export type Task = {
   text: string;
   done: boolean;
   group: string;
+  dueDate: string | null;
+  contactId: string | null;
 };
 
 function checkboxVal(prop: unknown): boolean {
   return (prop as { checkbox?: boolean })?.checkbox || false;
+}
+
+function dateVal(prop: unknown): string | null {
+  return (prop as { date?: { start: string } | null })?.date?.start || null;
+}
+
+function relationId(prop: unknown): string | null {
+  const arr = (prop as { relation?: { id: string }[] })?.relation;
+  return arr && arr.length ? arr[0].id : null;
 }
 
 function pageToTask(page: any): Task {
@@ -125,6 +136,8 @@ function pageToTask(page: any): Task {
     text: title(p['Task']),
     done: checkboxVal(p['Done']),
     group: selectName(p['Group']) || 'Lainnya',
+    dueDate: dateVal(p['Due Date']),
+    contactId: relationId(p['Kontak']),
   };
 }
 
@@ -158,7 +171,13 @@ export async function createTask(text: string, group: string): Promise<Task> {
 
 export async function updateTask(
   pageId: string,
-  fields: Partial<{ text: string; done: boolean; group: string }>
+  fields: Partial<{
+    text: string;
+    done: boolean;
+    group: string;
+    dueDate: string | null;
+    contactId: string | null;
+  }>
 ) {
   const properties: Record<string, unknown> = {};
   if (fields.text !== undefined) {
@@ -169,6 +188,12 @@ export async function updateTask(
   }
   if (fields.group !== undefined) {
     properties['Group'] = { select: { name: fields.group.slice(0, 100) } };
+  }
+  if (fields.dueDate !== undefined) {
+    properties['Due Date'] = { date: fields.dueDate ? { start: fields.dueDate } : null };
+  }
+  if (fields.contactId !== undefined) {
+    properties['Kontak'] = { relation: fields.contactId ? [{ id: fields.contactId }] : [] };
   }
   await notion.pages.update({ page_id: pageId, properties: properties as any });
 }

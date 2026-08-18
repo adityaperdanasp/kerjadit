@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { Task } from '@/lib/notion';
+import type { Contact, Task } from '@/lib/notion';
 
 async function apiCreate(text: string, group: string): Promise<Task | null> {
   const res = await fetch('/api/tasks', {
@@ -25,11 +25,27 @@ async function apiDelete(id: string) {
   await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
 }
 
-export default function TaskList({ initialTasks }: { initialTasks: Task[] }) {
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export default function TaskList({
+  initialTasks,
+  contacts,
+}: {
+  initialTasks: Task[];
+  contacts: Contact[];
+}) {
   const [tasks, setTasks] = useState(initialTasks);
   const [draftGroup, setDraftGroup] = useState('');
   const [draftText, setDraftText] = useState('');
   const [adding, setAdding] = useState(false);
+
+  const contactsById = useMemo(() => {
+    const m = new Map<string, Contact>();
+    for (const c of contacts) m.set(c.id, c);
+    return m;
+  }, [contacts]);
 
   const groups = useMemo(() => {
     const order: string[] = [];
@@ -57,9 +73,13 @@ export default function TaskList({ initialTasks }: { initialTasks: Task[] }) {
     setAdding(false);
   }
 
-  function toggleDone(id: string, done: boolean) {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done } : t)));
-    apiUpdate(id, { done });
+  function patchLocal(id: string, fields: Partial<Task>) {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...fields } : t)));
+  }
+
+  function handleFieldChange(id: string, fields: Record<string, unknown>) {
+    patchLocal(id, fields as Partial<Task>);
+    apiUpdate(id, fields);
   }
 
   function removeTask(id: string) {
@@ -147,7 +167,7 @@ export default function TaskList({ initialTasks }: { initialTasks: Task[] }) {
         <p style={{ fontSize: 12, color: 'var(--text-faint)' }}>Belum ada task.</p>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
         {groups.map(({ group, items }) => (
           <div key={group}>
             <h3
@@ -164,46 +184,199 @@ export default function TaskList({ initialTasks }: { initialTasks: Task[] }) {
             </h3>
             <ol style={{ margin: 0, paddingLeft: 22, listStyle: 'decimal' }}>
               {items.map((t) => (
-                <li key={t.id} style={{ marginBottom: 4 }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                    <span
-                      style={{
-                        flex: 1,
-                        fontSize: 13.5,
-                        color: t.done ? 'var(--text-faint)' : 'var(--text)',
-                        textDecoration: t.done ? 'line-through' : 'none',
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {t.text}
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={t.done}
-                      onChange={(e) => toggleDone(t.id, e.target.checked)}
-                      style={{ width: 15, height: 15, cursor: 'pointer', flexShrink: 0, marginTop: 3 }}
-                    />
-                    <button
-                      onClick={() => removeTask(t.id)}
-                      style={{
-                        border: 'none',
-                        background: 'transparent',
-                        color: 'var(--text-faint)',
-                        cursor: 'pointer',
-                        fontSize: 13,
-                        padding: '0 2px',
-                        flexShrink: 0,
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </li>
+                <TaskItem
+                  key={t.id}
+                  task={t}
+                  contact={t.contactId ? contactsById.get(t.contactId) : undefined}
+                  contacts={contacts}
+                  onFieldChange={handleFieldChange}
+                  onRemove={removeTask}
+                />
               ))}
             </ol>
           </div>
         ))}
       </div>
     </div>
+  );
+}
+
+function TaskItem({
+  task,
+  contact,
+  contacts,
+  onFieldChange,
+  onRemove,
+}: {
+  task: Task;
+  contact?: Contact;
+  contacts: Contact[];
+  onFieldChange: (id: string, fields: Record<string, unknown>) => void;
+  onRemove: (id: string) => void;
+}) {
+  const [text, setText] = useState(task.text);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const overdue = !!task.dueDate && !task.done && task.dueDate < todayStr();
+
+  const matches = useMemo(() => {
+    if (!query.trim()) return [];
+    const q = query.toLowerCase();
+    return contacts.filter((c) => c.nama.toLowerCase().includes(q)).slice(0, 8);
+  }, [query, contacts]);
+
+  return (
+    <li style={{ marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => {
+            if (text.trim() && text !== task.text) onFieldChange(task.id, { text: text.trim() });
+          }}
+          style={{
+            flex: 1,
+            minWidth: 160,
+            fontSize: 13.5,
+            border: '1px solid transparent',
+            borderRadius: 6,
+            padding: '2px 4px',
+            background: 'transparent',
+            color: task.done ? 'var(--text-faint)' : 'var(--text)',
+            textDecoration: task.done ? 'line-through' : 'none',
+          }}
+        />
+        <input
+          type="date"
+          value={task.dueDate || ''}
+          onChange={(e) => onFieldChange(task.id, { dueDate: e.target.value || null })}
+          style={{
+            fontSize: 11.5,
+            padding: '3px 6px',
+            borderRadius: 6,
+            border: '1px solid var(--border)',
+            color: overdue ? '#fff' : 'var(--text-dim)',
+            background: overdue ? 'var(--red)' : 'var(--panel)',
+          }}
+        />
+        <input
+          type="checkbox"
+          checked={task.done}
+          onChange={(e) => onFieldChange(task.id, { done: e.target.checked })}
+          style={{ width: 15, height: 15, cursor: 'pointer', flexShrink: 0, marginTop: 5 }}
+        />
+        <button
+          onClick={() => onRemove(task.id)}
+          style={{
+            border: 'none',
+            background: 'transparent',
+            color: 'var(--text-faint)',
+            cursor: 'pointer',
+            fontSize: 13,
+            padding: '0 2px',
+            flexShrink: 0,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      <div style={{ marginTop: 3 }}>
+        {contact ? (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 11,
+              background: 'var(--panel-2)',
+              color: 'var(--text-dim)',
+              padding: '2px 8px',
+              borderRadius: 100,
+            }}
+          >
+            🔗 {contact.nama}
+            {contact.hariSejakChat != null && (
+              <span style={{ color: 'var(--text-faint)' }}>· {contact.hariSejakChat}h</span>
+            )}
+            <span
+              onClick={() => onFieldChange(task.id, { contactId: null })}
+              style={{ cursor: 'pointer', marginLeft: 2 }}
+            >
+              ✕
+            </span>
+          </span>
+        ) : pickerOpen ? (
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onBlur={() => setTimeout(() => setPickerOpen(false), 150)}
+              placeholder="Cari kontak…"
+              style={{
+                fontSize: 11.5,
+                padding: '3px 6px',
+                borderRadius: 6,
+                border: '1px solid var(--border)',
+                width: 180,
+              }}
+            />
+            {matches.length > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  zIndex: 10,
+                  background: 'var(--panel)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  marginTop: 2,
+                  width: 220,
+                  maxHeight: 180,
+                  overflowY: 'auto',
+                  boxShadow: '0 4px 12px rgba(0,0,0,.08)',
+                }}
+              >
+                {matches.map((c) => (
+                  <div
+                    key={c.id}
+                    onMouseDown={() => {
+                      onFieldChange(task.id, { contactId: c.id });
+                      setPickerOpen(false);
+                      setQuery('');
+                    }}
+                    style={{
+                      padding: '6px 10px',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      borderBottom: '1px solid var(--border)',
+                    }}
+                  >
+                    {c.nama}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => setPickerOpen(true)}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-faint)',
+              cursor: 'pointer',
+              fontSize: 11,
+              padding: 0,
+            }}
+          >
+            + link kontak
+          </button>
+        )}
+      </div>
+    </li>
   );
 }
