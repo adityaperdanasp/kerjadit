@@ -1,18 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import type { SpmGroup, PettyCashRow } from '@/lib/sheets';
-import { SpmMonthTable, PettyCashTable } from './MbgTables';
+import type { SpmGroup, PettyCashRow, FinTable } from '@/lib/sheets';
+import { SpmMonthTable, PettyCashTable, FinancialStatementView } from './MbgTables';
+
+const FINANCIAL_STATEMENT_LABEL = 'Financial Statement';
+const PETTY_CASH_LABEL = 'Petty Cash';
 
 export default function MbgTabs({
   spmGroups,
   pettyCash,
+  financialStatement,
 }: {
   spmGroups: SpmGroup[];
   pettyCash: { title: string; rows: PettyCashRow[]; error: boolean };
+  financialStatement: { tables: FinTable[]; error: boolean };
 }) {
-  const tabs = [...spmGroups.map((g) => g.label), 'Petty Cash'];
-  const [active, setActive] = useState(tabs[tabs.length - 2] || tabs[0]);
+  const tabs = [...spmGroups.map((g) => g.label), FINANCIAL_STATEMENT_LABEL, PETTY_CASH_LABEL];
+  const [active, setActive] = useState(spmGroups[spmGroups.length - 1]?.label || tabs[0]);
 
   return (
     <div>
@@ -57,7 +62,11 @@ export default function MbgTabs({
           <SpmMonthTable key={g.label} group={g} />
         ))}
 
-      {active === 'Petty Cash' && (
+      {active === FINANCIAL_STATEMENT_LABEL && (
+        <FinancialStatementView tables={financialStatement.tables} error={financialStatement.error} />
+      )}
+
+      {active === PETTY_CASH_LABEL && (
         <PettyCashTable title={pettyCash.title} rows={pettyCash.rows} error={pettyCash.error} />
       )}
     </div>

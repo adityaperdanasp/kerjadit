@@ -1,4 +1,4 @@
-import type { SpmGroup, PettyCashRow } from '@/lib/sheets';
+import type { SpmGroup, PettyCashRow, FinTable } from '@/lib/sheets';
 
 const panelStyle: React.CSSProperties = {
   background: 'var(--panel)',
@@ -105,6 +105,88 @@ export function SpmMonthTable({ group }: { group: SpmGroup }) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function looksNumeric(v: string) {
+  const s = v.trim();
+  if (!s) return false;
+  return /^-?[\d.,]+%?$/.test(s);
+}
+
+function FinTableCard({ table }: { table: FinTable }) {
+  const numericCols = table.header.map((_, i) =>
+    table.rows.some((r) => looksNumeric(r[i] || '')) && table.rows.every((r) => !r[i] || looksNumeric(r[i]))
+  );
+  const tall = table.rows.length > 15;
+
+  return (
+    <div style={panelStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <h2 style={{ fontSize: 13, fontWeight: 800, margin: 0, color: 'var(--text)' }}>{table.title}</h2>
+        <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{table.rows.length} baris</span>
+      </div>
+      <div style={{ overflowX: 'auto', ...(tall ? { maxHeight: 420, overflowY: 'auto' } : {}) }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              {table.header.map((h, i) => (
+                <th key={i} style={{ ...thStyle, textAlign: numericCols[i] ? 'right' : 'left' }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((r, i) => {
+              const isTotalRow = /total|grand total|saldo|balance/i.test(r[0] || r[1] || '');
+              const indent = (r[1] || '').match(/^(\s+)/)?.[1]?.length || 0;
+              return (
+                <tr key={i} style={isTotalRow ? { background: 'var(--panel-2)' } : undefined}>
+                  {table.header.map((_, ci) => (
+                    <td
+                      key={ci}
+                      style={{
+                        ...tdStyle,
+                        textAlign: numericCols[ci] ? 'right' : 'left',
+                        fontWeight: isTotalRow ? 800 : 400,
+                        paddingLeft: ci === 1 && indent ? 8 + indent * 6 : 8,
+                      }}
+                    >
+                      {r[ci] || ''}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+            {table.rows.length === 0 && (
+              <tr>
+                <td colSpan={table.header.length} style={{ ...tdStyle, color: 'var(--text-faint)', textAlign: 'center' }}>
+                  Tidak ada data.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export function FinancialStatementView({ tables, error }: { tables: FinTable[]; error: boolean }) {
+  if (error) {
+    return (
+      <div style={panelStyle}>
+        <p style={{ fontSize: 12, color: 'var(--red)' }}>Gagal ambil data Financial Statement.</p>
+      </div>
+    );
+  }
+  return (
+    <div>
+      {tables.map((t, i) => (
+        <FinTableCard key={i} table={t} />
+      ))}
     </div>
   );
 }

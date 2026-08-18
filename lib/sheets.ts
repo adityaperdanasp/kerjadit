@@ -1,4 +1,5 @@
 const SHEET_ID = '1bnUc0yTl3rAH5EWEjf_HBH4zVLZZXKJEBhdG0bFbQ2M';
+const MBG_SHEET_ID = '1ogYGnj4HP5CthXg4nVZzh9l4CXpOcGEHn0jzJnJHcS8';
 
 const SPM_TABS = [
   { label: 'Juni', gid: '639702659' },
@@ -6,6 +7,7 @@ const SPM_TABS = [
   { label: 'Agustus', gid: '0' },
 ];
 const PETTY_CASH_GID = '1531376938';
+const FINANCIAL_STATEMENT_GID = '74504632';
 
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
@@ -48,8 +50,8 @@ function parseCsv(text: string): string[][] {
   return rows;
 }
 
-async function fetchTabCsv(gid: string): Promise<string[][]> {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`;
+async function fetchCsv(sheetId: string, gid: string): Promise<string[][]> {
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
   try {
     const res = await fetch(url, { next: { revalidate: 30 } });
     if (!res.ok) return [];
@@ -58,6 +60,10 @@ async function fetchTabCsv(gid: string): Promise<string[][]> {
   } catch {
     return [];
   }
+}
+
+function fetchTabCsv(gid: string): Promise<string[][]> {
+  return fetchCsv(SHEET_ID, gid);
 }
 
 export type SpmRow = {
@@ -127,4 +133,106 @@ export async function fetchPettyCash(): Promise<{
         linkNota: r[5] || '',
       })),
   };
+}
+
+export type FinTable = { title: string; header: string[]; rows: string[][] };
+
+function isBlankRow(row: string[]): boolean {
+  return !row.some((c) => c.trim());
+}
+
+function isSectionTitleRow(row: string[]): boolean {
+  return !row[0]?.trim() && !!row[1]?.trim() && row.slice(2).every((c) => !c.trim());
+}
+
+function isHeaderRow(row: string[]): boolean {
+  const first = row[1]?.trim().toLowerCase();
+  return first === 'no' || first === 'no.';
+}
+
+function trimEmptyColumns(header: string[], rows: string[][]): { header: string[]; rows: string[][] } {
+  const width = Math.max(header.length, ...rows.map((r) => r.length), 0);
+  const keep: number[] = [];
+  for (let i = 0; i < width; i++) {
+    const hasHeader = (header[i] || '').trim();
+    const hasData = rows.some((r) => (r[i] || '').trim());
+    if (hasHeader || hasData) keep.push(i);
+  }
+  return {
+    header: keep.map((i) => header[i] || ''),
+    rows: rows.map((r) => keep.map((i) => r[i] || '')),
+  };
+}
+
+function fixHeaderGaps(header: string[]): string[] {
+  const out = [...header];
+  for (let i = 1; i < out.length; i++) {
+    if (!out[i]?.trim() && out[i - 1]?.trim()) {
+      out[i] = `${out[i - 1]} Tgl`;
+    }
+  }
+  return out;
+}
+
+function toTitleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\bMbg\b/g, 'MBG')
+    .replace(/\bDs\b/g, 'DS')
+    .replace(/\bCgk\b/g, 'CGK');
+}
+
+function buildSubTables(blockTitle: string, blockRows: string[][]): FinTable[] {
+  const headerIdxs: number[] = [];
+  blockRows.forEach((r, i) => {
+    if (isHeaderRow(r)) headerIdxs.push(i);
+  });
+  if (headerIdxs.length === 0) return [];
+
+  const niceBlockTitle = toTitleCase(blockTitle);
+  const tables: FinTable[] = [];
+  for (let h = 0; h < headerIdxs.length; h++) {
+    const start = headerIdxs[h];
+    const end = h + 1 < headerIdxs.length ? headerIdxs[h + 1] : blockRows.length;
+    const rawHeader = blockRows[start];
+    const dataRows = blockRows.slice(start + 1, end).filter((r) => !isBlankRow(r));
+    const trimmed = trimEmptyColumns(rawHeader, dataRows);
+    const header = fixHeaderGaps(trimmed.header);
+    const rows = trimmed.rows;
+
+    let title = niceBlockTitle;
+    if (headerIdxs.length > 1) {
+      // Multiple header rows in one block (e.g. INCOME + EXPENSES) — name each
+      // sub-table after its own category column instead of the shared block title.
+      const category = rawHeader[2]?.trim();
+      if (category) title = toTitleCase(category);
+    } else if (blockRows.some((r) => r.includes('Harian')) && blockTitle.includes('PROFIT INVESTOR')) {
+      title = `${niceBlockTitle} (Sewa & Supply Chain)`;
+    } else if (blockRows.some((r) => r.includes('BEP (Month)')) && blockTitle.includes('PROFIT INVESTOR')) {
+      title = `${niceBlockTitle} (BEP)`;
+    }
+    tables.push({ title, header, rows });
+  }
+  return tables;
+}
+
+export async function fetchFinancialStatement(): Promise<{ tables: FinTable[]; error: boolean }> {
+  const rows = await fetchCsv(MBG_SHEET_ID, FINANCIAL_STATEMENT_GID);
+  if (rows.length === 0) return { tables: [], error: true };
+
+  const blocks: { title: string; rows: string[][] }[] = [];
+  let current: { title: string; rows: string[][] } | null = null;
+  for (const row of rows) {
+    if (isSectionTitleRow(row)) {
+      if (current) blocks.push(current);
+      current = { title: row[1].trim(), rows: [] };
+    } else if (current) {
+      current.rows.push(row);
+    }
+  }
+  if (current) blocks.push(current);
+
+  const tables = blocks.flatMap((b) => buildSubTables(b.title, b.rows));
+  return { tables, error: false };
 }
