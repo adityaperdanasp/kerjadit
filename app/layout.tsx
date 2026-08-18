@@ -15,7 +15,19 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="id" className={plusJakarta.variable}>
+    <html
+      lang="id"
+      data-theme="light"
+      suppressHydrationWarning
+      className={plusJakarta.variable}
+    >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}`,
+          }}
+        />
+      </head>
       <body>{children}</body>
     </html>
   );

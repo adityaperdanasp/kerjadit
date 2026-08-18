@@ -103,14 +103,14 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
       {staleDeals.length > 0 && (
         <div
           style={{
-            background: '#fdf1e8',
-            border: '1px solid #f0cba5',
+            background: 'var(--warn-bg)',
+            border: '1px solid var(--warn-border)',
             borderRadius: 12,
             padding: '12px 14px',
             marginBottom: 16,
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#8a4a1c', marginBottom: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--warn-text)', marginBottom: 6 }}>
             ⚠️ {staleDeals.length} deal belum di-follow-up &gt;7 hari
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -119,9 +119,9 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
                 key={c.id}
                 style={{
                   fontSize: 11.5,
-                  background: '#fff',
-                  border: '1px solid #f0cba5',
-                  color: '#8a4a1c',
+                  background: 'var(--panel)',
+                  border: '1px solid var(--warn-border)',
+                  color: 'var(--warn-text)',
                   padding: '3px 9px',
                   borderRadius: 100,
                 }}
