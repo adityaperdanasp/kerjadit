@@ -90,3 +90,27 @@ body {
     flex-shrink: 0;
   }
 }
+
+.task-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+@media (max-width: 720px) {
+  .task-groups {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 10px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .task-group-card {
+    flex: 0 0 85%;
+    scroll-snap-align: start;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+  }
+}

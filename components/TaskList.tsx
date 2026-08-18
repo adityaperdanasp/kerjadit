@@ -192,9 +192,9 @@ export default function TaskList({
         </p>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <div className="task-groups">
         {groups.map(({ group, items }) => (
-          <div key={group}>
+          <div key={group} className="task-group-card">
             <h3
               style={{
                 fontSize: 14.5,
