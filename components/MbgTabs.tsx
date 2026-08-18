@@ -1,11 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SpmGroup, PettyCashRow, FinTable } from '@/lib/sheets';
 import { SpmMonthTable, PettyCashTable, FinancialStatementView } from './MbgTables';
 
 const FINANCIAL_STATEMENT_LABEL = 'Financial Statement';
 const PETTY_CASH_LABEL = 'Petty Cash';
+
+function pillStyle(active: boolean): React.CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '6px 16px',
+    fontSize: 13,
+    fontWeight: 700,
+    borderRadius: 999,
+    border: 'none',
+    cursor: 'pointer',
+    color: active ? 'var(--text)' : 'var(--text-faint)',
+    background: active ? 'var(--panel)' : 'transparent',
+    boxShadow: active ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
+  };
+}
 
 export default function MbgTabs({
   spmGroups,
@@ -16,56 +33,87 @@ export default function MbgTabs({
   pettyCash: { title: string; rows: PettyCashRow[]; error: boolean };
   financialStatement: { tables: FinTable[]; error: boolean };
 }) {
-  const dropdownOptions = [...spmGroups.map((g) => g.label), PETTY_CASH_LABEL];
-  const defaultValue = spmGroups[spmGroups.length - 1]?.label || dropdownOptions[0];
+  const monthLabels = spmGroups.map((g) => g.label);
+  const defaultValue = monthLabels[monthLabels.length - 1] || monthLabels[0] || PETTY_CASH_LABEL;
   const [active, setActive] = useState(defaultValue);
-  const [dropdownValue, setDropdownValue] = useState(defaultValue);
+  const [monthOpen, setMonthOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  function handleDropdownChange(value: string) {
-    setDropdownValue(value);
-    setActive(value);
-  }
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMonthOpen(false);
+    }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
 
-  const financialActive = active === FINANCIAL_STATEMENT_LABEL;
+  const isMonthActive = monthLabels.includes(active);
+  const monthPillLabel = isMonthActive ? active : monthLabels[monthLabels.length - 1] || '';
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
-        <select
-          value={dropdownValue}
-          onChange={(e) => handleDropdownChange(e.target.value)}
-          style={{
-            padding: '8px 12px',
-            fontSize: 13,
-            fontWeight: 700,
-            borderRadius: 10,
-            border: '1px solid var(--border)',
-            background: 'var(--panel)',
-            color: 'var(--text)',
-            cursor: 'pointer',
-          }}
-        >
-          {dropdownOptions.map((label) => (
-            <option key={label} value={label}>
-              {label}
-            </option>
-          ))}
-        </select>
+      <div
+        style={{
+          display: 'inline-flex',
+          gap: 2,
+          background: 'var(--panel-2)',
+          borderRadius: 999,
+          padding: 3,
+          marginBottom: 16,
+        }}
+      >
+        <div ref={menuRef} style={{ position: 'relative' }}>
+          <button onClick={() => setMonthOpen((v) => !v)} style={pillStyle(isMonthActive)}>
+            {monthPillLabel}
+            <span style={{ fontSize: 9, marginLeft: 2 }}>▾</span>
+          </button>
+          {monthOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                left: 0,
+                background: 'var(--panel)',
+                border: '1px solid var(--border)',
+                borderRadius: 10,
+                boxShadow: '0 8px 24px rgba(0,0,0,.14)',
+                overflow: 'hidden',
+                zIndex: 20,
+                minWidth: 130,
+              }}
+            >
+              {monthLabels.map((label) => (
+                <div
+                  key={label}
+                  onClick={() => {
+                    setActive(label);
+                    setMonthOpen(false);
+                  }}
+                  style={{
+                    padding: '9px 14px',
+                    fontSize: 13,
+                    fontWeight: active === label ? 800 : 500,
+                    cursor: 'pointer',
+                    color: active === label ? 'var(--text)' : 'var(--text-dim)',
+                    background: active === label ? 'var(--panel-2)' : 'transparent',
+                  }}
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button onClick={() => setActive(PETTY_CASH_LABEL)} style={pillStyle(active === PETTY_CASH_LABEL)}>
+          {PETTY_CASH_LABEL}
+        </button>
 
         <button
           onClick={() => setActive(FINANCIAL_STATEMENT_LABEL)}
-          style={{
-            padding: '8px 16px',
-            fontSize: 13,
-            fontWeight: 700,
-            borderRadius: 10,
-            border: `1px solid ${financialActive ? 'var(--teal)' : 'var(--border)'}`,
-            background: financialActive ? 'var(--panel)' : 'transparent',
-            color: financialActive ? 'var(--teal)' : 'var(--text-faint)',
-            cursor: 'pointer',
-          }}
+          style={pillStyle(active === FINANCIAL_STATEMENT_LABEL)}
         >
-          Financial Statement
+          {FINANCIAL_STATEMENT_LABEL}
         </button>
       </div>
 
