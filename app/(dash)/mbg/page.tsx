@@ -1,5 +1,5 @@
 import { fetchSpmData, fetchPettyCash } from '@/lib/sheets';
-import { SpmMonthTable, PettyCashTable } from '@/components/MbgTables';
+import MbgTabs from '@/components/MbgTabs';
 
 export const revalidate = 30;
 
@@ -25,11 +25,7 @@ export default async function MbgPage() {
         </span>
       </div>
 
-      {spmGroups.map((g) => (
-        <SpmMonthTable key={g.label} group={g} />
-      ))}
-
-      <PettyCashTable title={pettyCash.title} rows={pettyCash.rows} error={pettyCash.error} />
+      <MbgTabs spmGroups={spmGroups} pettyCash={pettyCash} />
     </div>
   );
 }
