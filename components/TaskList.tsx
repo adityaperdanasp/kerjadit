@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Contact, Task } from '@/lib/notion';
 
 async function apiCreate(text: string, group: string): Promise<Task | null> {
@@ -136,27 +136,15 @@ export default function TaskList({
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: addError ? 6 : 18, flexWrap: 'wrap' }}>
-        <input
+        <GroupPicker
           value={draftGroup}
-          onChange={(e) => {
-            setDraftGroup(e.target.value);
+          onChange={(v) => {
+            setDraftGroup(v);
             if (addError) setAddError('');
           }}
-          placeholder="Klien / project…"
-          list="task-group-options"
-          style={{
-            width: 200,
-            padding: '8px 10px',
-            borderRadius: 8,
-            border: `1px solid ${addError.includes('klien') ? 'var(--red)' : 'var(--border)'}`,
-            fontSize: 13,
-          }}
+          existingGroups={existingGroups}
+          error={addError.includes('klien')}
         />
-        <datalist id="task-group-options">
-          {existingGroups.map((g) => (
-            <option key={g} value={g} />
-          ))}
-        </datalist>
         <input
           value={draftText}
           onChange={(e) => {
@@ -420,5 +408,106 @@ function TaskItem({
         )}
       </div>
     </li>
+  );
+}
+
+function GroupPicker({
+  value,
+  onChange,
+  existingGroups,
+  error,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  existingGroups: string[];
+  error: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  const q = value.trim().toLowerCase();
+  const matches = existingGroups.filter((g) => g.toLowerCase().includes(q));
+  const exactMatch = existingGroups.some((g) => g.toLowerCase() === q);
+  const showCreateOption = value.trim() && !exactMatch;
+
+  return (
+    <div ref={ref} style={{ position: 'relative', width: 200 }}>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setOpen(true)}
+        placeholder="Pilih atau ketik klien baru…"
+        style={{
+          width: '100%',
+          padding: '8px 10px',
+          borderRadius: 8,
+          border: `1px solid ${error ? 'var(--red)' : 'var(--border)'}`,
+          fontSize: 13,
+        }}
+      />
+      {open && (matches.length > 0 || showCreateOption) && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            zIndex: 20,
+            background: 'var(--panel)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            boxShadow: '0 8px 24px rgba(0,0,0,.12)',
+            maxHeight: 220,
+            overflowY: 'auto',
+          }}
+        >
+          {showCreateOption && (
+            <div
+              onMouseDown={() => setOpen(false)}
+              style={{
+                padding: '8px 10px',
+                fontSize: 12.5,
+                fontWeight: 700,
+                color: 'var(--teal)',
+                cursor: 'pointer',
+                borderBottom: matches.length > 0 ? '1px solid var(--border)' : 'none',
+              }}
+            >
+              + Buat klien baru: &ldquo;{value.trim()}&rdquo;
+            </div>
+          )}
+          {matches.map((g) => (
+            <div
+              key={g}
+              onMouseDown={() => {
+                onChange(g);
+                setOpen(false);
+              }}
+              style={{
+                padding: '8px 10px',
+                fontSize: 12.5,
+                color: 'var(--text)',
+                cursor: 'pointer',
+              }}
+            >
+              {g}
+            </div>
+          ))}
+          {matches.length === 0 && !showCreateOption && (
+            <div style={{ padding: '8px 10px', fontSize: 12, color: 'var(--text-faint)' }}>
+              Belum ada klien.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
