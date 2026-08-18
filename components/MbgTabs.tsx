@@ -16,7 +16,7 @@ export default function MbgTabs({
   pettyCash: { title: string; rows: PettyCashRow[]; error: boolean };
   financialStatement: { tables: FinTable[]; error: boolean };
 }) {
-  const tabs = [...spmGroups.map((g) => g.label), FINANCIAL_STATEMENT_LABEL, PETTY_CASH_LABEL];
+  const tabs = [...spmGroups.map((g) => g.label), PETTY_CASH_LABEL, FINANCIAL_STATEMENT_LABEL];
   const [active, setActive] = useState(spmGroups[spmGroups.length - 1]?.label || tabs[0]);
 
   return (

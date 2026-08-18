@@ -234,5 +234,10 @@ export async function fetchFinancialStatement(): Promise<{ tables: FinTable[]; e
   if (current) blocks.push(current);
 
   const tables = blocks.flatMap((b) => buildSubTables(b.title, b.rows));
+  const pengembalianIdx = tables.findIndex((t) => /pengembalian modal/i.test(t.title));
+  if (pengembalianIdx > 0) {
+    const [pengembalian] = tables.splice(pengembalianIdx, 1);
+    tables.unshift(pengembalian);
+  }
   return { tables, error: false };
 }
