@@ -41,6 +41,7 @@ export default function TaskList({
   const [draftText, setDraftText] = useState('');
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState('');
+  const [addError, setAddError] = useState('');
 
   const contactsById = useMemo(() => {
     const m = new Map<string, Contact>();
@@ -70,7 +71,12 @@ export default function TaskList({
   async function handleAdd() {
     const group = draftGroup.trim();
     const text = draftText.trim();
-    if (!group || !text || adding) return;
+    if (adding) return;
+    if (!group || !text) {
+      setAddError(!group ? 'Isi nama klien / project dulu.' : 'Isi task-nya dulu.');
+      return;
+    }
+    setAddError('');
     setAdding(true);
     setDraftText('');
     const task = await apiCreate(text, group);
@@ -129,17 +135,20 @@ export default function TaskList({
         />
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: addError ? 6 : 18, flexWrap: 'wrap' }}>
         <input
           value={draftGroup}
-          onChange={(e) => setDraftGroup(e.target.value)}
+          onChange={(e) => {
+            setDraftGroup(e.target.value);
+            if (addError) setAddError('');
+          }}
           placeholder="Klien / project…"
           list="task-group-options"
           style={{
             width: 200,
             padding: '8px 10px',
             borderRadius: 8,
-            border: '1px solid var(--border)',
+            border: `1px solid ${addError.includes('klien') ? 'var(--red)' : 'var(--border)'}`,
             fontSize: 13,
           }}
         />
@@ -150,7 +159,10 @@ export default function TaskList({
         </datalist>
         <input
           value={draftText}
-          onChange={(e) => setDraftText(e.target.value)}
+          onChange={(e) => {
+            setDraftText(e.target.value);
+            if (addError) setAddError('');
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') handleAdd();
           }}
@@ -160,7 +172,7 @@ export default function TaskList({
             minWidth: 180,
             padding: '8px 10px',
             borderRadius: 8,
-            border: '1px solid var(--border)',
+            border: `1px solid ${addError.includes('task') ? 'var(--red)' : 'var(--border)'}`,
             fontSize: 13,
           }}
         />
@@ -181,6 +193,10 @@ export default function TaskList({
           Tambah
         </button>
       </div>
+
+      {addError && (
+        <p style={{ fontSize: 11.5, color: 'var(--red)', margin: '0 0 12px' }}>{addError}</p>
+      )}
 
       {groups.length === 0 && (
         <p style={{ fontSize: 12, color: 'var(--text-faint)' }}>
