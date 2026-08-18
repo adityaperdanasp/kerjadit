@@ -21,40 +21,29 @@ export default function MbgTabs({
 
   return (
     <div>
-      <div
+      <select
+        value={active}
+        onChange={(e) => setActive(e.target.value)}
         style={{
-          display: 'inline-flex',
-          flexWrap: 'wrap',
-          gap: 2,
-          background: 'var(--panel-2)',
-          borderRadius: 999,
-          padding: 3,
+          display: 'block',
+          width: 220,
+          padding: '8px 12px',
+          fontSize: 13,
+          fontWeight: 700,
+          borderRadius: 10,
+          border: '1px solid var(--border)',
+          background: 'var(--panel)',
+          color: 'var(--text)',
+          cursor: 'pointer',
           marginBottom: 16,
         }}
       >
-        {tabs.map((label) => {
-          const isActive = active === label;
-          return (
-            <button
-              key={label}
-              onClick={() => setActive(label)}
-              style={{
-                padding: '6px 16px',
-                fontSize: 13,
-                fontWeight: 700,
-                borderRadius: 999,
-                border: 'none',
-                cursor: 'pointer',
-                color: isActive ? 'var(--text)' : 'var(--text-faint)',
-                background: isActive ? 'var(--panel)' : 'transparent',
-                boxShadow: isActive ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
-              }}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+        {tabs.map((label) => (
+          <option key={label} value={label}>
+            {label}
+          </option>
+        ))}
+      </select>
 
       {spmGroups
         .filter((g) => g.label === active)
