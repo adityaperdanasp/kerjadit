@@ -228,7 +228,7 @@ function TaskItem({
 
   return (
     <li style={{ marginBottom: 10 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -236,8 +236,7 @@ function TaskItem({
             if (text.trim() && text !== task.text) onFieldChange(task.id, { text: text.trim() });
           }}
           style={{
-            flex: 1,
-            minWidth: 160,
+            width: '100%',
             fontSize: 13.5,
             border: '1px solid transparent',
             borderRadius: 6,
@@ -247,39 +246,45 @@ function TaskItem({
             textDecoration: task.done ? 'line-through' : 'none',
           }}
         />
-        <input
-          type="date"
-          value={task.dueDate || ''}
-          onChange={(e) => onFieldChange(task.id, { dueDate: e.target.value || null })}
-          style={{
-            fontSize: 11.5,
-            padding: '3px 6px',
-            borderRadius: 6,
-            border: '1px solid var(--border)',
-            color: overdue ? '#fff' : 'var(--text-dim)',
-            background: overdue ? 'var(--red)' : 'var(--panel)',
-          }}
-        />
-        <input
-          type="checkbox"
-          checked={task.done}
-          onChange={(e) => onFieldChange(task.id, { done: e.target.checked })}
-          style={{ width: 15, height: 15, cursor: 'pointer', flexShrink: 0, marginTop: 5 }}
-        />
-        <button
-          onClick={() => onRemove(task.id)}
-          style={{
-            border: 'none',
-            background: 'transparent',
-            color: 'var(--text-faint)',
-            cursor: 'pointer',
-            fontSize: 13,
-            padding: '0 2px',
-            flexShrink: 0,
-          }}
-        >
-          ✕
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>Due</span>
+            <input
+              type="date"
+              value={task.dueDate || ''}
+              onChange={(e) => onFieldChange(task.id, { dueDate: e.target.value || null })}
+              style={{
+                fontSize: 11.5,
+                padding: '3px 6px',
+                borderRadius: 6,
+                border: '1px solid var(--border)',
+                color: overdue ? '#fff' : 'var(--text-dim)',
+                background: overdue ? 'var(--red)' : 'var(--panel)',
+                maxWidth: 130,
+              }}
+            />
+          </label>
+          <input
+            type="checkbox"
+            checked={task.done}
+            onChange={(e) => onFieldChange(task.id, { done: e.target.checked })}
+            style={{ width: 15, height: 15, cursor: 'pointer', flexShrink: 0 }}
+          />
+          <button
+            onClick={() => onRemove(task.id)}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              color: 'var(--text-faint)',
+              cursor: 'pointer',
+              fontSize: 13,
+              padding: '0 2px',
+              flexShrink: 0,
+            }}
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <div style={{ marginTop: 3 }}>

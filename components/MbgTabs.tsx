@@ -7,6 +7,25 @@ import { SpmMonthTable, PettyCashTable, FinancialStatementView } from './MbgTabl
 const FINANCIAL_STATEMENT_LABEL = 'Financial Statement';
 const PETTY_CASH_LABEL = 'Petty Cash';
 
+const MONTH_ABBR: Record<string, string> = {
+  Januari: 'Jan',
+  Februari: 'Feb',
+  Maret: 'Mar',
+  April: 'Apr',
+  Mei: 'May',
+  Juni: 'Jun',
+  Juli: 'Jul',
+  Agustus: 'Aug',
+  September: 'Sept',
+  Oktober: 'Oct',
+  November: 'Nov',
+  Desember: 'Dec',
+};
+
+function shortMonthLabel(label: string): string {
+  return MONTH_ABBR[label] || label.slice(0, 4);
+}
+
 function pillStyle(active: boolean): React.CSSProperties {
   return {
     display: 'inline-flex',
@@ -18,6 +37,7 @@ function pillStyle(active: boolean): React.CSSProperties {
     borderRadius: 999,
     border: 'none',
     cursor: 'pointer',
+    whiteSpace: 'nowrap',
     color: active ? 'var(--text)' : 'var(--text-faint)',
     background: active ? 'var(--panel)' : 'transparent',
     boxShadow: active ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
@@ -55,6 +75,7 @@ export default function MbgTabs({
       <div
         style={{
           display: 'inline-flex',
+          flexWrap: 'wrap',
           gap: 2,
           background: 'var(--panel-2)',
           borderRadius: 999,
@@ -64,7 +85,7 @@ export default function MbgTabs({
       >
         <div ref={menuRef} style={{ position: 'relative' }}>
           <button onClick={() => setMonthOpen((v) => !v)} style={pillStyle(isMonthActive)}>
-            {monthPillLabel}
+            {shortMonthLabel(monthPillLabel)}
             <span style={{ fontSize: 9, marginLeft: 2 }}>▾</span>
           </button>
           {monthOpen && (
