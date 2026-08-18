@@ -142,7 +142,13 @@ function isBlankRow(row: string[]): boolean {
 }
 
 function isSectionTitleRow(row: string[]): boolean {
-  return !row[0]?.trim() && !!row[1]?.trim() && row.slice(2).every((c) => !c.trim());
+  const title = row[1]?.trim() || '';
+  return (
+    !row[0]?.trim() &&
+    !!title &&
+    !/^\d+$/.test(title) &&
+    row.slice(2).every((c) => !c.trim())
+  );
 }
 
 function isHeaderRow(row: string[]): boolean {
