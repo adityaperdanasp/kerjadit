@@ -3,7 +3,16 @@ import type { NextRequest } from 'next/server';
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (pathname === '/login' || pathname === '/api/login' || pathname === '/icon') {
+  const PUBLIC_PATHS = [
+    '/login',
+    '/api/login',
+    '/icon',
+    '/apple-icon',
+    '/pwa-icon-192',
+    '/pwa-icon-512',
+    '/manifest.webmanifest',
+  ];
+  if (PUBLIC_PATHS.includes(pathname)) {
     return NextResponse.next();
   }
 
