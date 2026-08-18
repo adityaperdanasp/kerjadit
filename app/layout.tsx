@@ -9,7 +9,7 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Pipeline B2B",
+  title: "Pekerjaan 2026",
   description: "WhatsApp CRM pipeline dashboard",
 };
 

@@ -46,7 +46,7 @@ export default function LoginPage() {
         }}
       >
         <h1 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 4px', color: 'var(--text)' }}>
-          Pipeline B2B
+          Pekerjaan 2026
         </h1>
         <p style={{ fontSize: 12.5, color: 'var(--text-faint)', margin: '0 0 20px' }}>
           Masukkan password untuk lanjut

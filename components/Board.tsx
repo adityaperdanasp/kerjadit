@@ -93,7 +93,7 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
             letterSpacing: '-.01em',
           }}
         >
-          Pipeline B2B
+          Pekerjaan 2026
         </h1>
         <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>
           Drag kontak ke kolom status untuk mulai kelola deal
