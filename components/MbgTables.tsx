@@ -1,4 +1,54 @@
+'use client';
+
+import { useState } from 'react';
 import type { SpmGroup, PettyCashRow, FinTable } from '@/lib/sheets';
+
+async function saveFinancialCell(sheetRow: number, sheetCol: number, value: string) {
+  await fetch('/api/mbg/financial-cell', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sheetRow, sheetCol, value }),
+  });
+}
+
+function EditableCell({
+  value,
+  sheetRow,
+  sheetCol,
+  align,
+}: {
+  value: string;
+  sheetRow: number;
+  sheetCol: number;
+  align: 'left' | 'right';
+}) {
+  const [text, setText] = useState(value);
+  const [saving, setSaving] = useState(false);
+
+  return (
+    <input
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        if (text === value || saving) return;
+        setSaving(true);
+        saveFinancialCell(sheetRow, sheetCol, text).finally(() => setSaving(false));
+      }}
+      style={{
+        width: '100%',
+        minWidth: 60,
+        border: '1px solid transparent',
+        borderRadius: 4,
+        padding: '2px 4px',
+        fontSize: 12.5,
+        textAlign: align,
+        background: saving ? 'var(--panel-2)' : 'transparent',
+        color: 'var(--text)',
+        fontFamily: 'inherit',
+      }}
+    />
+  );
+}
 
 const panelStyle: React.CSSProperties = {
   background: 'var(--panel)',
@@ -140,7 +190,7 @@ function FinTableCard({ table }: { table: FinTable }) {
           </thead>
           <tbody>
             {table.rows.map((r, i) => {
-              const isTotalRow = /total|grand total|saldo|balance/i.test(r[0] || r[1] || '');
+              const isTotalRow = !table.editableRows[i];
               const indent = (r[1] || '').match(/^(\s+)/)?.[1]?.length || 0;
               return (
                 <tr key={i} style={isTotalRow ? { background: 'var(--panel-2)' } : undefined}>
@@ -154,7 +204,16 @@ function FinTableCard({ table }: { table: FinTable }) {
                         paddingLeft: ci === 1 && indent ? 8 + indent * 6 : 8,
                       }}
                     >
-                      {r[ci] || ''}
+                      {isTotalRow ? (
+                        r[ci] || ''
+                      ) : (
+                        <EditableCell
+                          value={r[ci] || ''}
+                          sheetRow={table.rowSheetRows[i]}
+                          sheetCol={table.colSheetCols[ci]}
+                          align={numericCols[ci] ? 'right' : 'left'}
+                        />
+                      )}
                     </td>
                   ))}
                 </tr>

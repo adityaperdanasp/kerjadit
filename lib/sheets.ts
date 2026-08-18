@@ -135,7 +135,19 @@ export async function fetchPettyCash(): Promise<{
   };
 }
 
-export type FinTable = { title: string; header: string[]; rows: string[][] };
+export const FINANCIAL_STATEMENT_SHEET_ID = MBG_SHEET_ID;
+export const FINANCIAL_STATEMENT_SHEET_NAME = 'Financial Statement';
+
+// header/rows are the display strings; sheetRow/sheetCol give each cell's real
+// (0-indexed) position in the Google Sheet, for writing edits back precisely.
+export type FinTable = {
+  title: string;
+  header: string[];
+  rows: string[][];
+  rowSheetRows: number[]; // sheet row for each entry in `rows`
+  colSheetCols: number[]; // sheet column for each entry in `header`/each row's cells
+  editableRows: boolean[]; // false for total/balance rows — never write those back
+};
 
 function isBlankRow(row: string[]): boolean {
   return !row.some((c) => c.trim());
@@ -156,7 +168,14 @@ function isHeaderRow(row: string[]): boolean {
   return first === 'no' || first === 'no.';
 }
 
-function trimEmptyColumns(header: string[], rows: string[][]): { header: string[]; rows: string[][] } {
+function isTotalRow(row: string[]): boolean {
+  return /total|grand total|saldo|balance/i.test(row[0] || row[1] || '');
+}
+
+function trimEmptyColumns(
+  header: string[],
+  rows: string[][]
+): { header: string[]; rows: string[][]; colSheetCols: number[] } {
   const width = Math.max(header.length, ...rows.map((r) => r.length), 0);
   const keep: number[] = [];
   for (let i = 0; i < width; i++) {
@@ -167,6 +186,7 @@ function trimEmptyColumns(header: string[], rows: string[][]): { header: string[
   return {
     header: keep.map((i) => header[i] || ''),
     rows: rows.map((r) => keep.map((i) => r[i] || '')),
+    colSheetCols: keep,
   };
 }
 
@@ -189,7 +209,11 @@ function toTitleCase(s: string): string {
     .replace(/\bCgk\b/g, 'CGK');
 }
 
-function buildSubTables(blockTitle: string, blockRows: string[][]): FinTable[] {
+function buildSubTables(
+  blockTitle: string,
+  blockRows: string[][],
+  blockRowNums: number[]
+): FinTable[] {
   const headerIdxs: number[] = [];
   blockRows.forEach((r, i) => {
     if (isHeaderRow(r)) headerIdxs.push(i);
@@ -202,8 +226,17 @@ function buildSubTables(blockTitle: string, blockRows: string[][]): FinTable[] {
     const start = headerIdxs[h];
     const end = h + 1 < headerIdxs.length ? headerIdxs[h + 1] : blockRows.length;
     const rawHeader = blockRows[start];
-    const dataRows = blockRows.slice(start + 1, end).filter((r) => !isBlankRow(r));
-    const trimmed = trimEmptyColumns(rawHeader, dataRows);
+
+    const dataRowsRaw: string[][] = [];
+    const dataRowNums: number[] = [];
+    for (let i = start + 1; i < end; i++) {
+      if (!isBlankRow(blockRows[i])) {
+        dataRowsRaw.push(blockRows[i]);
+        dataRowNums.push(blockRowNums[i]);
+      }
+    }
+
+    const trimmed = trimEmptyColumns(rawHeader, dataRowsRaw);
     const header = fixHeaderGaps(trimmed.header);
     const rows = trimmed.rows;
 
@@ -218,7 +251,14 @@ function buildSubTables(blockTitle: string, blockRows: string[][]): FinTable[] {
     } else if (blockRows.some((r) => r.includes('BEP (Month)')) && blockTitle.includes('PROFIT INVESTOR')) {
       title = `${niceBlockTitle} (BEP)`;
     }
-    tables.push({ title, header, rows });
+    tables.push({
+      title,
+      header,
+      rows,
+      rowSheetRows: dataRowNums,
+      colSheetCols: trimmed.colSheetCols,
+      editableRows: dataRowsRaw.map((r) => !isTotalRow(r)),
+    });
   }
   return tables;
 }
@@ -227,19 +267,20 @@ export async function fetchFinancialStatement(): Promise<{ tables: FinTable[]; e
   const rows = await fetchCsv(MBG_SHEET_ID, FINANCIAL_STATEMENT_GID);
   if (rows.length === 0) return { tables: [], error: true };
 
-  const blocks: { title: string; rows: string[][] }[] = [];
-  let current: { title: string; rows: string[][] } | null = null;
-  for (const row of rows) {
+  const blocks: { title: string; rows: string[][]; rowNums: number[] }[] = [];
+  let current: { title: string; rows: string[][]; rowNums: number[] } | null = null;
+  rows.forEach((row, idx) => {
     if (isSectionTitleRow(row)) {
       if (current) blocks.push(current);
-      current = { title: row[1].trim(), rows: [] };
+      current = { title: row[1].trim(), rows: [], rowNums: [] };
     } else if (current) {
       current.rows.push(row);
+      current.rowNums.push(idx);
     }
-  }
+  });
   if (current) blocks.push(current);
 
-  const tables = blocks.flatMap((b) => buildSubTables(b.title, b.rows));
+  const tables = blocks.flatMap((b) => buildSubTables(b.title, b.rows, b.rowNums));
   const pengembalianIdx = tables.findIndex((t) => /pengembalian modal/i.test(t.title));
   if (pengembalianIdx > 0) {
     const [pengembalian] = tables.splice(pengembalianIdx, 1);
