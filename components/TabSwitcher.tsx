@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import ThemeToggle from './ThemeToggle';
+import ListenerStatusBadge from './ListenerStatusBadge';
 
 const TABS = [
   { href: '/sirka', label: 'Sirka' },
@@ -56,7 +57,10 @@ export default function TabSwitcher() {
           );
         })}
       </div>
-      <ThemeToggle />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <ListenerStatusBadge />
+        <ThemeToggle />
+      </div>
     </div>
   );
 }

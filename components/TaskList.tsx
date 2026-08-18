@@ -40,6 +40,7 @@ export default function TaskList({
   const [draftGroup, setDraftGroup] = useState('');
   const [draftText, setDraftText] = useState('');
   const [adding, setAdding] = useState(false);
+  const [search, setSearch] = useState('');
 
   const contactsById = useMemo(() => {
     const m = new Map<string, Contact>();
@@ -48,9 +49,13 @@ export default function TaskList({
   }, [contacts]);
 
   const groups = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? tasks.filter((t) => t.text.toLowerCase().includes(q) || t.group.toLowerCase().includes(q))
+      : tasks;
     const order: string[] = [];
     const map = new Map<string, Task[]>();
-    for (const t of tasks) {
+    for (const t of filtered) {
       if (!map.has(t.group)) {
         map.set(t.group, []);
         order.push(t.group);
@@ -58,7 +63,7 @@ export default function TaskList({
       map.get(t.group)!.push(t);
     }
     return order.map((g) => ({ group: g, items: map.get(g)! }));
-  }, [tasks]);
+  }, [tasks, search]);
 
   const existingGroups = useMemo(() => Array.from(new Set(tasks.map((t) => t.group))), [tasks]);
 
@@ -97,18 +102,32 @@ export default function TaskList({
         marginTop: 20,
       }}
     >
-      <h2
-        style={{
-          fontSize: 11,
-          textTransform: 'uppercase',
-          letterSpacing: '.05em',
-          color: 'var(--text-faint)',
-          margin: '0 0 14px',
-          fontWeight: 700,
-        }}
-      >
-        Task
-      </h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <h2
+          style={{
+            fontSize: 11,
+            textTransform: 'uppercase',
+            letterSpacing: '.05em',
+            color: 'var(--text-faint)',
+            margin: 0,
+            fontWeight: 700,
+          }}
+        >
+          Task
+        </h2>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Cari task / klien…"
+          style={{
+            width: 200,
+            padding: '6px 10px',
+            borderRadius: 8,
+            border: '1px solid var(--border)',
+            fontSize: 12.5,
+          }}
+        />
+      </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
         <input
@@ -164,7 +183,9 @@ export default function TaskList({
       </div>
 
       {groups.length === 0 && (
-        <p style={{ fontSize: 12, color: 'var(--text-faint)' }}>Belum ada task.</p>
+        <p style={{ fontSize: 12, color: 'var(--text-faint)' }}>
+          {search.trim() ? 'Nggak ada task yang cocok.' : 'Belum ada task.'}
+        </p>
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>

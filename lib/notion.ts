@@ -212,3 +212,15 @@ export const INDUSTRY_OPTIONS = [
   'Other',
   'Unknown',
 ];
+
+const LISTENER_HEARTBEAT_PAGE_ID = '3c044c46-bc10-8165-b205-d97cd128d5ac';
+
+export async function fetchListenerStatus(): Promise<{ lastHeartbeat: string | null }> {
+  try {
+    const page: any = await notion.pages.retrieve({ page_id: LISTENER_HEARTBEAT_PAGE_ID });
+    const start = page.properties?.['Last Heartbeat']?.date?.start || null;
+    return { lastHeartbeat: start };
+  } catch {
+    return { lastHeartbeat: null };
+  }
+}
