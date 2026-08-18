@@ -184,6 +184,24 @@ export function FinancialStatementView({ tables, error }: { tables: FinTable[]; 
   }
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+        <a
+          href="https://docs.google.com/spreadsheets/d/1ogYGnj4HP5CthXg4nVZzh9l4CXpOcGEHn0jzJnJHcS8/edit?gid=74504632#gid=74504632"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: 'var(--teal)',
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          Buka di Google Sheets ↗
+        </a>
+      </div>
       {tables.map((t, i) => (
         <FinTableCard key={i} table={t} />
       ))}
