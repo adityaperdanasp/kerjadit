@@ -68,6 +68,15 @@ export default function TaskList({
 
   const existingGroups = useMemo(() => Array.from(new Set(tasks.map((t) => t.group))), [tasks]);
 
+  async function addTask(group: string, text: string) {
+    const g = group.trim();
+    const t = text.trim();
+    if (!g || !t) return false;
+    const task = await apiCreate(t, g);
+    if (task) setTasks((prev) => [...prev, task]);
+    return !!task;
+  }
+
   async function handleAdd() {
     const group = draftGroup.trim();
     const text = draftText.trim();
@@ -79,8 +88,7 @@ export default function TaskList({
     setAddError('');
     setAdding(true);
     setDraftText('');
-    const task = await apiCreate(text, group);
-    if (task) setTasks((prev) => [...prev, task]);
+    await addTask(group, text);
     setAdding(false);
   }
 
@@ -219,9 +227,97 @@ export default function TaskList({
                 />
               ))}
             </ol>
+            <QuickAddTask group={group} onAdd={(text) => addTask(group, text)} />
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function QuickAddTask({
+  group,
+  onAdd,
+}: {
+  group: string;
+  onAdd: (text: string) => Promise<boolean>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    const t = text.trim();
+    if (!t || saving) return;
+    setSaving(true);
+    await onAdd(t);
+    setText('');
+    setSaving(false);
+    setOpen(false);
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        style={{
+          marginLeft: 22,
+          marginTop: 4,
+          border: 'none',
+          background: 'transparent',
+          color: 'var(--teal)',
+          cursor: 'pointer',
+          fontSize: 12,
+          fontWeight: 700,
+          padding: 0,
+        }}
+      >
+        + Tambah task
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 6, marginLeft: 22, marginTop: 4 }}>
+      <input
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') submit();
+          if (e.key === 'Escape') {
+            setText('');
+            setOpen(false);
+          }
+        }}
+        onBlur={() => {
+          if (!text.trim()) setOpen(false);
+        }}
+        placeholder={`Task baru untuk ${group}…`}
+        style={{
+          flex: 1,
+          fontSize: 12.5,
+          padding: '5px 8px',
+          borderRadius: 6,
+          border: '1px solid var(--border)',
+        }}
+      />
+      <button
+        onClick={submit}
+        disabled={saving}
+        style={{
+          fontSize: 12,
+          padding: '5px 12px',
+          borderRadius: 6,
+          border: 'none',
+          background: 'var(--teal)',
+          color: '#fff',
+          fontWeight: 700,
+          cursor: 'pointer',
+        }}
+      >
+        +
+      </button>
     </div>
   );
 }
