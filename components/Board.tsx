@@ -100,6 +100,8 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
         </span>
       </div>
 
+      <AiBriefing />
+
       {staleDeals.length > 0 && (
         <div
           style={{
@@ -246,6 +248,119 @@ const tdStyle: React.CSSProperties = {
   padding: '8px 8px',
   verticalAlign: 'top',
 };
+
+type BriefingItem = { icon: string; tag: string; title: string; detail: string };
+
+function AiBriefing() {
+  const [items, setItems] = useState<BriefingItem[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null);
+
+  async function generate() {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/ai-briefing', { method: 'POST' });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Gagal generate');
+      setItems(data.items);
+      setGeneratedAt(data.generatedAt);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal generate');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        background: 'linear-gradient(135deg, var(--panel) 0%, var(--panel-2) 100%)',
+        border: '1px solid var(--border)',
+        borderRadius: 14,
+        padding: '16px 18px',
+        marginBottom: 16,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--text)' }}>🤖 AI Briefing</div>
+          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>
+            {generatedAt
+              ? `Terakhir digenerate ${new Date(generatedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`
+              : 'Belum pernah digenerate'}
+          </div>
+        </div>
+        <button
+          onClick={generate}
+          disabled={loading}
+          style={{
+            fontSize: 11.5,
+            fontWeight: 700,
+            padding: '6px 12px',
+            borderRadius: 8,
+            border: '1px solid var(--border)',
+            background: 'var(--panel)',
+            color: 'var(--teal)',
+            cursor: loading ? 'default' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          {loading ? 'Mikir…' : items ? '↻ Generate ulang' : '✨ Generate briefing hari ini'}
+        </button>
+      </div>
+
+      {error && <p style={{ fontSize: 11.5, color: 'var(--red)', margin: '0 0 8px' }}>{error}</p>}
+
+      {!items && !loading && !error && (
+        <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: 0 }}>
+          Klik generate buat liat 5 hal yang perlu lo perhatiin hari ini, berdasarkan data kontak & task asli.
+        </p>
+      )}
+
+      {items && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {items.map((item, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                gap: 10,
+                background: 'var(--panel)',
+                border: '1px solid var(--border)',
+                borderRadius: 10,
+                padding: '10px 12px',
+              }}
+            >
+              <div style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>{item.title}</span>
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '.03em',
+                      color: item.tag === 'AI' ? 'var(--teal)' : 'var(--text-faint)',
+                      background: item.tag === 'AI' ? 'rgba(13,148,136,.12)' : 'var(--panel-2)',
+                      padding: '1px 6px',
+                      borderRadius: 100,
+                    }}
+                  >
+                    {item.tag}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 2 }}>{item.detail}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function StatCard({
   label,
