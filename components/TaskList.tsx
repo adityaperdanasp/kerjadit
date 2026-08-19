@@ -194,7 +194,7 @@ export default function TaskList({
 
       <div className="task-groups">
         {groups.map(({ group, items }) => (
-          <div key={group} className="task-group-card">
+          <div key={group}>
             <h3
               style={{
                 fontSize: 14.5,
@@ -254,23 +254,25 @@ function TaskItem({
   return (
     <li style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={() => {
-            if (text.trim() && text !== task.text) onFieldChange(task.id, { text: text.trim() });
-          }}
-          style={{
-            width: '100%',
-            fontSize: 13.5,
-            border: '1px solid transparent',
-            borderRadius: 6,
-            padding: '2px 4px',
-            background: 'transparent',
-            color: task.done ? 'var(--text-faint)' : 'var(--text)',
-            textDecoration: task.done ? 'line-through' : 'none',
-          }}
-        />
+        <div className="task-item-scroll">
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onBlur={() => {
+              if (text.trim() && text !== task.text) onFieldChange(task.id, { text: text.trim() });
+            }}
+            style={{
+              display: 'block',
+              fontSize: 13.5,
+              border: '1px solid transparent',
+              borderRadius: 6,
+              padding: '2px 4px',
+              background: 'transparent',
+              color: task.done ? 'var(--text-faint)' : 'var(--text)',
+              textDecoration: task.done ? 'line-through' : 'none',
+            }}
+          />
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>Due</span>
