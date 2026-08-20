@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
-import { fetchAllContacts, fetchAllTasks } from '@/lib/notion';
+import { fetchAllContacts, fetchAllTasks, fetchAiBriefing, saveAiBriefing } from '@/lib/notion';
 import { sumopodChat } from '@/lib/sumopod';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
+}
+
+export async function GET() {
+  const briefing = await fetchAiBriefing();
+  return NextResponse.json({ ok: true, ...briefing });
 }
 
 export async function POST() {
@@ -61,7 +66,10 @@ ${JSON.stringify(digest, null, 2)}`;
 
     if (!Array.isArray(items)) throw new Error('Model tidak mengembalikan array');
 
-    return NextResponse.json({ ok: true, items, generatedAt: new Date().toISOString() });
+    const generatedAt = new Date().toISOString();
+    await saveAiBriefing(items, generatedAt);
+
+    return NextResponse.json({ ok: true, items, generatedAt });
   } catch (err) {
     return NextResponse.json(
       { ok: false, error: err instanceof Error ? err.message : 'Unknown error' },

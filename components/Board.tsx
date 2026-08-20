@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { INDUSTRY_OPTIONS, type Contact } from '@/lib/notion';
+import { INDUSTRY_OPTIONS, type Contact, type BriefingItem } from '@/lib/notion';
 
 const STATUSES = ['Hot', 'Warm', 'Cold', 'Win', 'Lost'] as const;
 type Status = (typeof STATUSES)[number];
@@ -22,7 +22,13 @@ async function patchContact(id: string, fields: Record<string, unknown>) {
   });
 }
 
-export default function Board({ initialContacts }: { initialContacts: Contact[] }) {
+export default function Board({
+  initialContacts,
+  initialBriefing,
+}: {
+  initialContacts: Contact[];
+  initialBriefing: { items: BriefingItem[] | null; generatedAt: string | null };
+}) {
   const [contacts, setContacts] = useState(initialContacts);
   const [search, setSearch] = useState('');
   const [clusterFilter, setClusterFilter] = useState('Semua');
@@ -100,7 +106,7 @@ export default function Board({ initialContacts }: { initialContacts: Contact[] 
         </span>
       </div>
 
-      <AiBriefing />
+      <AiBriefing initialItems={initialBriefing.items} initialGeneratedAt={initialBriefing.generatedAt} />
 
       {staleDeals.length > 0 && (
         <div
@@ -249,13 +255,17 @@ const tdStyle: React.CSSProperties = {
   verticalAlign: 'top',
 };
 
-type BriefingItem = { icon: string; tag: string; title: string; detail: string };
-
-function AiBriefing() {
-  const [items, setItems] = useState<BriefingItem[] | null>(null);
+function AiBriefing({
+  initialItems,
+  initialGeneratedAt,
+}: {
+  initialItems: BriefingItem[] | null;
+  initialGeneratedAt: string | null;
+}) {
+  const [items, setItems] = useState<BriefingItem[] | null>(initialItems);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [generatedAt, setGeneratedAt] = useState<string | null>(null);
+  const [generatedAt, setGeneratedAt] = useState<string | null>(initialGeneratedAt);
 
   async function generate() {
     setLoading(true);

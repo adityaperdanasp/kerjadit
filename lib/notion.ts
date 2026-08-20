@@ -224,3 +224,36 @@ export async function fetchListenerStatus(): Promise<{ lastHeartbeat: string | n
     return { lastHeartbeat: null };
   }
 }
+
+// Shares the same "System Status" page as the heartbeat above, so the AI Briefing
+// generated on one device shows up on every other device instead of resetting per session.
+function chunkText(s: string, size = 1900): string[] {
+  const chunks: string[] = [];
+  for (let i = 0; i < s.length; i += size) chunks.push(s.slice(i, i + size));
+  return chunks.length ? chunks : [''];
+}
+
+export type BriefingItem = { icon: string; tag: string; title: string; detail: string };
+
+export async function fetchAiBriefing(): Promise<{ items: BriefingItem[] | null; generatedAt: string | null }> {
+  try {
+    const page: any = await notion.pages.retrieve({ page_id: LISTENER_HEARTBEAT_PAGE_ID });
+    const raw = text(page.properties?.['AI Briefing']);
+    const generatedAt = page.properties?.['Briefing At']?.date?.start || null;
+    if (!raw) return { items: null, generatedAt: null };
+    return { items: JSON.parse(raw) as BriefingItem[], generatedAt };
+  } catch {
+    return { items: null, generatedAt: null };
+  }
+}
+
+export async function saveAiBriefing(items: BriefingItem[], generatedAt: string) {
+  const json = JSON.stringify(items);
+  await notion.pages.update({
+    page_id: LISTENER_HEARTBEAT_PAGE_ID,
+    properties: {
+      'AI Briefing': { rich_text: chunkText(json).map((content) => ({ type: 'text', text: { content } })) },
+      'Briefing At': { date: { start: generatedAt } },
+    },
+  });
+}
