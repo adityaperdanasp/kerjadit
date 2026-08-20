@@ -8,6 +8,7 @@ const SPM_TABS = [
 ];
 const PETTY_CASH_GID = '1531376938';
 const FINANCIAL_STATEMENT_GID = '74504632';
+const PENDING_JOB_GID = '956241155';
 
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
@@ -287,4 +288,46 @@ export async function fetchFinancialStatement(): Promise<{ tables: FinTable[]; e
     tables.unshift(pengembalian);
   }
   return { tables, error: false };
+}
+
+export const PENDING_JOB_SHEET_ID = MBG_SHEET_ID;
+export const PENDING_JOB_SHEET_NAME = 'Pending Job';
+// 0-indexed column positions, shared with the API routes that write cells back.
+export const PENDING_JOB_COLS = { group: 0, text: 1, pic: 2, dueDate: 3, done: 4, id: 5 } as const;
+
+export type PendingJobItem = {
+  id: string;
+  text: string;
+  pic: string;
+  dueDate: string | null;
+  done: boolean;
+  sheetRow: number;
+};
+export type PendingJobGroup = { group: string; items: PendingJobItem[] };
+
+export async function fetchPendingJobs(): Promise<{ groups: PendingJobGroup[]; error: boolean }> {
+  const rows = await fetchCsv(MBG_SHEET_ID, PENDING_JOB_GID);
+  if (rows.length === 0) return { groups: [], error: true };
+  const order: string[] = [];
+  const map = new Map<string, PendingJobItem[]>();
+  rows.forEach((r, i) => {
+    if (i === 0) return; // header row
+    const group = (r[PENDING_JOB_COLS.group] || '').trim();
+    const id = (r[PENDING_JOB_COLS.id] || '').trim();
+    if (!group || !id) return;
+    const item: PendingJobItem = {
+      id,
+      text: r[PENDING_JOB_COLS.text] || '',
+      pic: r[PENDING_JOB_COLS.pic] || '',
+      dueDate: r[PENDING_JOB_COLS.dueDate]?.trim() || null,
+      done: /^(true|yes|1)$/i.test((r[PENDING_JOB_COLS.done] || '').trim()),
+      sheetRow: i,
+    };
+    if (!map.has(group)) {
+      map.set(group, []);
+      order.push(group);
+    }
+    map.get(group)!.push(item);
+  });
+  return { groups: order.map((g) => ({ group: g, items: map.get(g)! })), error: false };
 }

@@ -48,3 +48,45 @@ export async function updateSheetCell(
   });
   return res.data;
 }
+
+// Appends a row after the sheet's last used row and reports which row it landed on
+// (needed since concurrent edits mean we can't predict the row ahead of time).
+export async function appendSheetRow(
+  spreadsheetId: string,
+  sheetName: string,
+  values: string[]
+): Promise<{ sheetRow: number }> {
+  const auth = getClient();
+  const range = `'${sheetName}'!A:${colToLetter(values.length - 1)}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(
+    range
+  )}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+
+  const res = await auth.request<{ updates: { updatedRange: string } }>({
+    url,
+    method: 'POST',
+    data: { range, majorDimension: 'ROWS', values: [values] },
+  });
+  const updatedRange: string = res.data.updates.updatedRange;
+  const match = updatedRange.match(/![A-Z]+(\d+)/);
+  const sheetRow = match ? Number(match[1]) - 1 : -1;
+  return { sheetRow };
+}
+
+// Blanks a row's cells rather than deleting the sheet row, so other rows' already-known
+// sheetRow numbers stay valid for the rest of the current page load.
+export async function clearSheetRow(
+  spreadsheetId: string,
+  sheetName: string,
+  row: number,
+  colCount: number
+) {
+  const auth = getClient();
+  const range = `'${sheetName}'!A${row + 1}:${colToLetter(colCount - 1)}${row + 1}`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(
+    range
+  )}:clear`;
+
+  const res = await auth.request({ url, method: 'POST' });
+  return res.data;
+}

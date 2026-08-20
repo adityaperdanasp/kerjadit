@@ -1,13 +1,14 @@
-import { fetchSpmData, fetchPettyCash, fetchFinancialStatement } from '@/lib/sheets';
+import { fetchSpmData, fetchPettyCash, fetchFinancialStatement, fetchPendingJobs } from '@/lib/sheets';
 import MbgTabs from '@/components/MbgTabs';
 
 export const revalidate = 30;
 
 export default async function MbgPage() {
-  const [spmGroups, pettyCash, financialStatement] = await Promise.all([
+  const [spmGroups, pettyCash, financialStatement, pendingJob] = await Promise.all([
     fetchSpmData(),
     fetchPettyCash(),
     fetchFinancialStatement(),
+    fetchPendingJobs(),
   ]);
 
   return (
@@ -29,7 +30,12 @@ export default async function MbgPage() {
         </span>
       </div>
 
-      <MbgTabs spmGroups={spmGroups} pettyCash={pettyCash} financialStatement={financialStatement} />
+      <MbgTabs
+        spmGroups={spmGroups}
+        pettyCash={pettyCash}
+        financialStatement={financialStatement}
+        pendingJob={pendingJob}
+      />
     </div>
   );
 }

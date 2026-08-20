@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { SpmGroup, PettyCashRow, FinTable } from '@/lib/sheets';
+import type { SpmGroup, PettyCashRow, FinTable, PendingJobGroup } from '@/lib/sheets';
 import { SpmMonthTable, PettyCashTable, FinancialStatementView, PendingJobTable } from './MbgTables';
 
 const FINANCIAL_STATEMENT_LABEL = 'Financial Statement';
@@ -49,10 +49,12 @@ export default function MbgTabs({
   spmGroups,
   pettyCash,
   financialStatement,
+  pendingJob,
 }: {
   spmGroups: SpmGroup[];
   pettyCash: { title: string; rows: PettyCashRow[]; error: boolean };
   financialStatement: { tables: FinTable[]; error: boolean };
+  pendingJob: { groups: PendingJobGroup[]; error: boolean };
 }) {
   const monthLabels = spmGroups.map((g) => g.label);
   const defaultValue = monthLabels[monthLabels.length - 1] || monthLabels[0] || PETTY_CASH_LABEL;
@@ -157,7 +159,9 @@ export default function MbgTabs({
         <PettyCashTable title={pettyCash.title} rows={pettyCash.rows} error={pettyCash.error} />
       )}
 
-      {active === PENDING_JOB_LABEL && <PendingJobTable />}
+      {active === PENDING_JOB_LABEL && (
+        <PendingJobTable initialGroups={pendingJob.groups} error={pendingJob.error} />
+      )}
     </div>
   );
 }
