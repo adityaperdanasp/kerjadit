@@ -298,11 +298,16 @@ function AiBriefing({
         : it
     );
     setItems(next);
+    setError('');
     fetch('/api/ai-briefing', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ items: next }),
-    });
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error();
+      })
+      .catch(() => setError('Gagal simpan status — cek koneksi, nanti coba klik lagi.'));
   }
 
   return (
