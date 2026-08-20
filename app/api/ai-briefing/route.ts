@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
-import { fetchAllContacts, fetchAllTasks, fetchAiBriefing, saveAiBriefing } from '@/lib/notion';
+import {
+  fetchAllContacts,
+  fetchAllTasks,
+  fetchAiBriefing,
+  saveAiBriefing,
+  updateBriefingItems,
+  type BriefingItem,
+} from '@/lib/notion';
 import { sumopodChat } from '@/lib/sumopod';
 
 function todayStr() {
@@ -9,6 +16,20 @@ function todayStr() {
 export async function GET() {
   const briefing = await fetchAiBriefing();
   return NextResponse.json({ ok: true, ...briefing });
+}
+
+export async function PATCH(request: Request) {
+  const { items } = await request.json();
+  if (!Array.isArray(items)) {
+    return NextResponse.json({ ok: false, error: 'items harus array' }, { status: 400 });
+  }
+  try {
+    await updateBriefingItems(items as BriefingItem[]);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
 }
 
 export async function POST() {
@@ -62,9 +83,18 @@ ${JSON.stringify(digest, null, 2)}`;
 
     const raw = await sumopodChat(prompt);
     const cleaned = raw.trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim();
-    const items = JSON.parse(cleaned);
+    const rawItems = JSON.parse(cleaned);
 
-    if (!Array.isArray(items)) throw new Error('Model tidak mengembalikan array');
+    if (!Array.isArray(rawItems)) throw new Error('Model tidak mengembalikan array');
+
+    const items: BriefingItem[] = rawItems.map((it, i) => ({
+      id: `${Date.now()}-${i}`,
+      icon: it.icon,
+      tag: it.tag,
+      title: it.title,
+      detail: it.detail,
+      status: 'todo',
+    }));
 
     const generatedAt = new Date().toISOString();
     await saveAiBriefing(items, generatedAt);

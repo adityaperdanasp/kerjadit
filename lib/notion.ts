@@ -233,7 +233,29 @@ function chunkText(s: string, size = 1900): string[] {
   return chunks.length ? chunks : [''];
 }
 
-export type BriefingItem = { icon: string; tag: string; title: string; detail: string };
+export type BriefingStatus = 'todo' | 'in_progress' | 'done';
+export type BriefingItem = {
+  id: string;
+  icon: string;
+  tag: string;
+  title: string;
+  detail: string;
+  status: BriefingStatus;
+};
+
+// Older saved briefings (before per-item status existed) won't have `id`/`status` —
+// backfill them so the UI always has something stable to key/toggle off of.
+function normalizeBriefingItems(raw: unknown): BriefingItem[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  return arr.map((it, i) => ({
+    icon: it?.icon || '',
+    tag: it?.tag || '',
+    title: it?.title || '',
+    detail: it?.detail || '',
+    id: it?.id || `legacy-${i}`,
+    status: it?.status === 'in_progress' || it?.status === 'done' ? it.status : 'todo',
+  }));
+}
 
 export async function fetchAiBriefing(): Promise<{ items: BriefingItem[] | null; generatedAt: string | null }> {
   try {
@@ -241,7 +263,7 @@ export async function fetchAiBriefing(): Promise<{ items: BriefingItem[] | null;
     const raw = text(page.properties?.['AI Briefing']);
     const generatedAt = page.properties?.['Briefing At']?.date?.start || null;
     if (!raw) return { items: null, generatedAt: null };
-    return { items: JSON.parse(raw) as BriefingItem[], generatedAt };
+    return { items: normalizeBriefingItems(JSON.parse(raw)), generatedAt };
   } catch {
     return { items: null, generatedAt: null };
   }
@@ -254,6 +276,18 @@ export async function saveAiBriefing(items: BriefingItem[], generatedAt: string)
     properties: {
       'AI Briefing': { rich_text: chunkText(json).map((content) => ({ type: 'text', text: { content } })) },
       'Briefing At': { date: { start: generatedAt } },
+    },
+  });
+}
+
+// Only touches the items list, not the generated-at timestamp — checking a card's
+// status off shouldn't make the briefing look freshly regenerated.
+export async function updateBriefingItems(items: BriefingItem[]) {
+  const json = JSON.stringify(items);
+  await notion.pages.update({
+    page_id: LISTENER_HEARTBEAT_PAGE_ID,
+    properties: {
+      'AI Briefing': { rich_text: chunkText(json).map((content) => ({ type: 'text', text: { content } })) },
     },
   });
 }

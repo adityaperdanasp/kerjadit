@@ -255,6 +255,13 @@ const tdStyle: React.CSSProperties = {
   verticalAlign: 'top',
 };
 
+const STATUS_ORDER = ['todo', 'in_progress', 'done'] as const;
+const STATUS_CONFIG: Record<(typeof STATUS_ORDER)[number], { label: string; color: string; bg: string }> = {
+  todo: { label: 'Belum', color: 'var(--text-faint)', bg: 'var(--panel-2)' },
+  in_progress: { label: 'On Progress', color: '#fff', bg: 'var(--orange)' },
+  done: { label: 'Done', color: '#fff', bg: 'var(--green)' },
+};
+
 function AiBriefing({
   initialItems,
   initialGeneratedAt,
@@ -281,6 +288,21 @@ function AiBriefing({
     } finally {
       setLoading(false);
     }
+  }
+
+  function cycleStatus(id: string) {
+    if (!items) return;
+    const next = items.map((it) =>
+      it.id === id
+        ? { ...it, status: STATUS_ORDER[(STATUS_ORDER.indexOf(it.status) + 1) % STATUS_ORDER.length] }
+        : it
+    );
+    setItems(next);
+    fetch('/api/ai-briefing', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: next }),
+    });
   }
 
   return (
@@ -331,41 +353,80 @@ function AiBriefing({
 
       {items && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {items.map((item, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                gap: 10,
-                background: 'var(--panel)',
-                border: '1px solid var(--border)',
-                borderRadius: 10,
-                padding: '10px 12px',
-              }}
-            >
-              <div style={{ fontSize: 18, lineHeight: 1 }}>{item.icon}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>{item.title}</span>
-                  <span
+          {items.map((item) => {
+            const done = item.status === 'done';
+            return (
+              <div
+                key={item.id}
+                style={{
+                  display: 'flex',
+                  gap: 10,
+                  alignItems: 'flex-start',
+                  background: 'var(--panel)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                }}
+              >
+                <div style={{ fontSize: 18, lineHeight: 1, opacity: done ? 0.5 : 1 }}>{item.icon}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: 700,
+                        color: done ? 'var(--text-faint)' : 'var(--text)',
+                        textDecoration: done ? 'line-through' : 'none',
+                      }}
+                    >
+                      {item.title}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '.03em',
+                        color: item.tag === 'AI' ? 'var(--teal)' : 'var(--text-faint)',
+                        background: item.tag === 'AI' ? 'rgba(13,148,136,.12)' : 'var(--panel-2)',
+                        padding: '1px 6px',
+                        borderRadius: 100,
+                      }}
+                    >
+                      {item.tag}
+                    </span>
+                  </div>
+                  <div
                     style={{
-                      fontSize: 9,
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '.03em',
-                      color: item.tag === 'AI' ? 'var(--teal)' : 'var(--text-faint)',
-                      background: item.tag === 'AI' ? 'rgba(13,148,136,.12)' : 'var(--panel-2)',
-                      padding: '1px 6px',
-                      borderRadius: 100,
+                      fontSize: 11.5,
+                      color: 'var(--text-faint)',
+                      marginTop: 2,
+                      textDecoration: done ? 'line-through' : 'none',
                     }}
                   >
-                    {item.tag}
-                  </span>
+                    {item.detail}
+                  </div>
                 </div>
-                <div style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 2 }}>{item.detail}</div>
+                <button
+                  onClick={() => cycleStatus(item.id)}
+                  style={{
+                    flexShrink: 0,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: '4px 10px',
+                    borderRadius: 100,
+                    border: 'none',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    color: STATUS_CONFIG[item.status].color,
+                    background: STATUS_CONFIG[item.status].bg,
+                  }}
+                >
+                  {STATUS_CONFIG[item.status].label}
+                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
