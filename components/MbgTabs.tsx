@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { SpmGroup, PettyCashRow, FinTable } from '@/lib/sheets';
-import { SpmMonthTable, PettyCashTable, FinancialStatementView } from './MbgTables';
+import { SpmMonthTable, PettyCashTable, FinancialStatementView, PendingJobTable } from './MbgTables';
 
 const FINANCIAL_STATEMENT_LABEL = 'Financial Statement';
 const PETTY_CASH_LABEL = 'Petty Cash';
+const PENDING_JOB_LABEL = 'Pending Job';
 
 const MONTH_ABBR: Record<string, string> = {
   Januari: 'Jan',
@@ -134,7 +135,11 @@ export default function MbgTabs({
           onClick={() => setActive(FINANCIAL_STATEMENT_LABEL)}
           style={pillStyle(active === FINANCIAL_STATEMENT_LABEL)}
         >
-          {FINANCIAL_STATEMENT_LABEL}
+          FS
+        </button>
+
+        <button onClick={() => setActive(PENDING_JOB_LABEL)} style={pillStyle(active === PENDING_JOB_LABEL)}>
+          {PENDING_JOB_LABEL}
         </button>
       </div>
 
@@ -151,6 +156,8 @@ export default function MbgTabs({
       {active === PETTY_CASH_LABEL && (
         <PettyCashTable title={pettyCash.title} rows={pettyCash.rows} error={pettyCash.error} />
       )}
+
+      {active === PENDING_JOB_LABEL && <PendingJobTable />}
     </div>
   );
 }

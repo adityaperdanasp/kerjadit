@@ -327,3 +327,406 @@ export function PettyCashTable({
     </div>
   );
 }
+
+type MockJob = {
+  id: string;
+  text: string;
+  pic: string;
+  dueDate: string | null;
+  done: boolean;
+};
+
+type MockJobGroup = {
+  group: string;
+  items: MockJob[];
+};
+
+const MOCK_PENDING_JOBS: MockJobGroup[] = [
+  {
+    group: 'SPM Agustus',
+    items: [
+      { id: 'pj-1', text: 'Lengkapi nota yang belum di-upload', pic: 'Budi', dueDate: '2026-08-22', done: false },
+      { id: 'pj-2', text: 'Follow up approval maker ke yayasan', pic: 'Sari', dueDate: '2026-08-18', done: false },
+      { id: 'pj-3', text: 'Rekap SPM ke Financial Statement', pic: 'Andi', dueDate: null, done: true },
+    ],
+  },
+  {
+    group: 'Petty Cash',
+    items: [
+      { id: 'pj-4', text: 'Rekonsiliasi saldo minggu ini', pic: '', dueDate: '2026-08-21', done: false },
+      { id: 'pj-5', text: 'Input nota belanja dapur', pic: '', dueDate: null, done: false },
+    ],
+  },
+];
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+let mockJobSeq = 0;
+function newJobId() {
+  mockJobSeq += 1;
+  return `pj-new-${Date.now()}-${mockJobSeq}`;
+}
+
+export function PendingJobTable() {
+  const [groups, setGroups] = useState(MOCK_PENDING_JOBS);
+  const [search, setSearch] = useState('');
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftText, setDraftText] = useState('');
+  const [addError, setAddError] = useState('');
+
+  const filtered = search.trim()
+    ? groups
+        .map((g) => ({
+          group: g.group,
+          items: g.items.filter((t) => t.text.toLowerCase().includes(search.trim().toLowerCase())),
+        }))
+        .filter((g) => g.items.length > 0)
+    : groups;
+
+  function toggleDone(groupName: string, id: string) {
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.group !== groupName
+          ? g
+          : { ...g, items: g.items.map((t) => (t.id === id ? { ...t, done: !t.done } : t)) }
+      )
+    );
+  }
+
+  function removeJob(groupName: string, id: string) {
+    setGroups((prev) =>
+      prev.map((g) => (g.group !== groupName ? g : { ...g, items: g.items.filter((t) => t.id !== id) }))
+    );
+  }
+
+  function updatePic(groupName: string, id: string, pic: string) {
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.group !== groupName ? g : { ...g, items: g.items.map((t) => (t.id === id ? { ...t, pic } : t)) }
+      )
+    );
+  }
+
+  function renameGroup(oldName: string, newName: string) {
+    setGroups((prev) => prev.map((g) => (g.group !== oldName ? g : { ...g, group: newName })));
+  }
+
+  function addJob(groupName: string, text: string) {
+    const t = text.trim();
+    if (!t) return false;
+    const job: MockJob = { id: newJobId(), text: t, pic: '', dueDate: null, done: false };
+    setGroups((prev) => prev.map((g) => (g.group !== groupName ? g : { ...g, items: [...g.items, job] })));
+    return true;
+  }
+
+  function addJobGroup() {
+    const title = draftTitle.trim();
+    const text = draftText.trim();
+    if (!title || !text) {
+      setAddError(!title ? 'Isi judul pekerjaan dulu.' : 'Isi task pertamanya dulu.');
+      return;
+    }
+    setAddError('');
+    setGroups((prev) => [
+      ...prev,
+      { group: title, items: [{ id: newJobId(), text, pic: '', dueDate: null, done: false }] },
+    ]);
+    setDraftTitle('');
+    setDraftText('');
+  }
+
+  return (
+    <div
+      style={{
+        background: 'var(--panel)',
+        border: '1px solid var(--border)',
+        borderRadius: 14,
+        padding: 18,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        <h2
+          style={{
+            fontSize: 11,
+            textTransform: 'uppercase',
+            letterSpacing: '.05em',
+            color: 'var(--text-faint)',
+            margin: 0,
+            fontWeight: 700,
+          }}
+        >
+          Pending Job
+        </h2>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Cari job…"
+          style={{
+            width: 200,
+            padding: '6px 10px',
+            borderRadius: 8,
+            border: '1px solid var(--border)',
+            fontSize: 12.5,
+          }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: addError ? 6 : 18, flexWrap: 'wrap' }}>
+        <input
+          value={draftTitle}
+          onChange={(e) => {
+            setDraftTitle(e.target.value);
+            if (addError) setAddError('');
+          }}
+          placeholder="Judul pekerjaan baru…"
+          style={{
+            width: 200,
+            padding: '8px 10px',
+            borderRadius: 8,
+            border: `1px solid ${addError.includes('judul') ? 'var(--red)' : 'var(--border)'}`,
+            fontSize: 13,
+          }}
+        />
+        <input
+          value={draftText}
+          onChange={(e) => {
+            setDraftText(e.target.value);
+            if (addError) setAddError('');
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') addJobGroup();
+          }}
+          placeholder="Task pertama…"
+          style={{
+            flex: 1,
+            minWidth: 180,
+            padding: '8px 10px',
+            borderRadius: 8,
+            border: `1px solid ${addError.includes('task') ? 'var(--red)' : 'var(--border)'}`,
+            fontSize: 13,
+          }}
+        />
+        <button
+          onClick={addJobGroup}
+          style={{
+            padding: '8px 16px',
+            borderRadius: 8,
+            border: 'none',
+            background: 'var(--teal)',
+            color: '#fff',
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          Tambah
+        </button>
+      </div>
+
+      {addError && <p style={{ fontSize: 11.5, color: 'var(--red)', margin: '0 0 12px' }}>{addError}</p>}
+
+      {filtered.length === 0 && (
+        <p style={{ fontSize: 12, color: 'var(--text-faint)' }}>Nggak ada job yang cocok.</p>
+      )}
+
+      <div className="task-groups">
+        {filtered.map(({ group, items }) => (
+          <div key={group}>
+            <GroupTitle group={group} onRename={(newName) => renameGroup(group, newName)} />
+            <ol style={{ margin: 0, paddingLeft: 22, listStyle: 'decimal' }}>
+              {items.map((job) => {
+                const overdue = !!job.dueDate && !job.done && job.dueDate < todayStr();
+                return (
+                  <li key={job.id} style={{ marginBottom: 10 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div className="task-item-scroll">
+                        <span
+                          style={{
+                            display: 'block',
+                            fontSize: 13.5,
+                            padding: '2px 4px',
+                            color: job.done ? 'var(--text-faint)' : 'var(--text)',
+                            textDecoration: job.done ? 'line-through' : 'none',
+                          }}
+                        >
+                          {job.text}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>PIC</span>
+                          <input
+                            value={job.pic}
+                            onChange={(e) => updatePic(group, job.id, e.target.value.slice(0, 10))}
+                            maxLength={10}
+                            placeholder="—"
+                            style={{
+                              width: 86,
+                              fontSize: 11.5,
+                              padding: '3px 6px',
+                              borderRadius: 6,
+                              border: '1px solid var(--border)',
+                              color: 'var(--text-dim)',
+                              background: 'var(--panel)',
+                            }}
+                          />
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>Due</span>
+                          <span
+                            style={{
+                              fontSize: 11.5,
+                              padding: '3px 6px',
+                              borderRadius: 6,
+                              border: '1px solid var(--border)',
+                              color: overdue ? '#fff' : 'var(--text-dim)',
+                              background: overdue ? 'var(--red)' : 'var(--panel)',
+                            }}
+                          >
+                            {job.dueDate || '—'}
+                          </span>
+                        </label>
+                        <input
+                          type="checkbox"
+                          checked={job.done}
+                          onChange={() => toggleDone(group, job.id)}
+                          style={{ width: 15, height: 15, cursor: 'pointer', flexShrink: 0 }}
+                        />
+                        <button
+                          onClick={() => removeJob(group, job.id)}
+                          style={{
+                            border: 'none',
+                            background: 'transparent',
+                            color: 'var(--text-faint)',
+                            cursor: 'pointer',
+                            fontSize: 13,
+                            padding: '0 2px',
+                            flexShrink: 0,
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+            <QuickAddJob group={group} onAdd={(text) => addJob(group, text)} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GroupTitle({ group, onRename }: { group: string; onRename: (newName: string) => void }) {
+  const [text, setText] = useState(group);
+
+  return (
+    <input
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        const t = text.trim();
+        if (t && t !== group) onRename(t);
+        else setText(group);
+      }}
+      placeholder="Judul pekerjaan…"
+      style={{
+        display: 'block',
+        fontSize: 14.5,
+        fontWeight: 800,
+        margin: '0 0 6px',
+        padding: '2px 4px',
+        color: 'var(--text)',
+        textDecoration: 'underline',
+        textUnderlineOffset: 3,
+        border: '1px solid transparent',
+        borderRadius: 6,
+        background: 'transparent',
+        width: 'auto',
+        minWidth: 160,
+      }}
+    />
+  );
+}
+
+function QuickAddJob({ group, onAdd }: { group: string; onAdd: (text: string) => boolean }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+
+  function submit() {
+    const t = text.trim();
+    if (!t) return;
+    onAdd(t);
+    setText('');
+    setOpen(false);
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        style={{
+          marginLeft: 22,
+          marginTop: 4,
+          border: 'none',
+          background: 'transparent',
+          color: 'var(--teal)',
+          cursor: 'pointer',
+          fontSize: 12,
+          fontWeight: 700,
+          padding: 0,
+        }}
+      >
+        + Tambah task
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 6, marginLeft: 22, marginTop: 4 }}>
+      <input
+        autoFocus
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') submit();
+          if (e.key === 'Escape') {
+            setText('');
+            setOpen(false);
+          }
+        }}
+        onBlur={() => {
+          if (!text.trim()) setOpen(false);
+        }}
+        placeholder={`Task baru untuk ${group}…`}
+        style={{
+          flex: 1,
+          fontSize: 12.5,
+          padding: '5px 8px',
+          borderRadius: 6,
+          border: '1px solid var(--border)',
+        }}
+      />
+      <button
+        onClick={submit}
+        style={{
+          fontSize: 12,
+          padding: '5px 12px',
+          borderRadius: 6,
+          border: 'none',
+          background: 'var(--teal)',
+          color: '#fff',
+          fontWeight: 700,
+          cursor: 'pointer',
+        }}
+      >
+        +
+      </button>
+    </div>
+  );
+}
