@@ -12,8 +12,61 @@ const CLUSTERS_PATH = path.join(__dirname, 'clusters.json');
 const DB_ID_PATH = path.join(__dirname, 'notion-db-id.txt');
 const PAGE_MAP_PATH = path.join(__dirname, 'notion-page-map.json');
 
+const LOCK_PATH = '/tmp/wa-daily-sync.lock';
+
 const HOT_DAYS = 7;
 const WARM_DAYS = 14;
+
+// This script reads notion-page-map.json at startup and writes it back at the end.
+// Two overlapping runs each miss the other's new entries and create a second Notion
+// page for the same contact — permanent duplicates that need manual cleanup. The lock
+// lives here rather than only in the crontab so that a hand-run `node daily-sync.js`
+// is protected too; that collision is the one that actually happens, when someone
+// syncs manually while the hourly cron is mid-flight.
+function pidIsAlive(pid) {
+  try {
+    process.kill(pid, 0); // signal 0 = existence check, kills nothing
+    return true;
+  } catch (err) {
+    return err.code === 'EPERM'; // alive but owned by another user
+  }
+}
+
+function acquireLock() {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const fd = fs.openSync(LOCK_PATH, 'wx'); // wx = create-exclusive, fails if it exists
+      fs.writeSync(fd, String(process.pid));
+      fs.closeSync(fd);
+      return true;
+    } catch (err) {
+      if (err.code !== 'EEXIST') throw err;
+      let pid = NaN;
+      try {
+        pid = parseInt(fs.readFileSync(LOCK_PATH, 'utf8').trim(), 10);
+      } catch {
+        // unreadable lock — fall through and treat as stale
+      }
+      if (Number.isInteger(pid) && pidIsAlive(pid)) return false;
+      // Owner is gone (crash, kill -9, reboot) — clear the tombstone and retry once.
+      try {
+        fs.unlinkSync(LOCK_PATH);
+      } catch {
+        return false; // someone else won the race to clean it up
+      }
+    }
+  }
+  return false;
+}
+
+function releaseLock() {
+  try {
+    const pid = parseInt(fs.readFileSync(LOCK_PATH, 'utf8').trim(), 10);
+    if (pid === process.pid) fs.unlinkSync(LOCK_PATH); // never remove another run's lock
+  } catch {
+    // already gone; nothing to do
+  }
+}
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 
@@ -210,6 +263,17 @@ async function main() {
   fs.writeFileSync(PAGE_MAP_PATH, JSON.stringify(pageMap, null, 2));
   console.log('DAILY_SYNC_DONE', new Date().toISOString(), 'total_contacts=', store.length, 'touched=', toPush.length, 'created=', created, 'updated=', updated, 'failed=', failed);
 }
+
+if (!acquireLock()) {
+  console.log('SYNC_SKIPPED_LOCKED', new Date().toISOString(), '- run already in progress');
+  process.exit(0);
+}
+
+// Covers normal completion, uncaught throws, and Ctrl-C / systemd TERM. Not kill -9,
+// which is why acquireLock() also detects a dead owner instead of blocking forever.
+process.on('exit', releaseLock);
+process.on('SIGINT', () => process.exit(130));
+process.on('SIGTERM', () => process.exit(143));
 
 main().catch((err) => {
   console.error('FATAL', err);

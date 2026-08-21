@@ -20,7 +20,7 @@ Always `node -c` before restarting — a syntax error takes the listener down un
 | Script | Trigger | Role |
 |---|---|---|
 | `listener.js` | `wa-listener.service` (systemd, always on) | Long-lived Baileys socket. Read-only: never sends, never marks read, never sets presence. Appends live messages/contact names to `store.json` and posts the Notion heartbeat every 3 min. Does **not** write contact rows to Notion. |
-| `daily-sync.js` | cron hourly, under `flock` | Reads `store.json`, recomputes days-since-chat and Hot/Warm/Cold for every contact, writes the changed ones to Notion. This is the only thing that moves contact data into Notion — the listener never writes contact rows. Name is historical: it runs hourly now, see CLAUDE.md. |
+| `daily-sync.js` | cron hourly (self-locking) | Reads `store.json`, recomputes days-since-chat and Hot/Warm/Cold for every contact, writes the changed ones to Notion. This is the only thing that moves contact data into Notion — the listener never writes contact rows. Name is historical: it runs hourly now, see CLAUDE.md. |
 | `fetch-history.js` | manual, one-shot | Re-pairs via QR and bulk-imports chat history into `store.json`. Used for first setup and for recovering a gap after a broken session. Exits on its own once history stops arriving. |
 
 ## Files on the VPS that are deliberately NOT copied here
@@ -74,13 +74,16 @@ duplicate every contact.
 
 ## Concurrency
 
-`daily-sync.js` has **no internal lock**. It reads `notion-page-map.json` at startup and writes it back at the end, so two overlapping runs can each miss the other's new entries and create a second Notion page for the same contact — duplicates that then have to be cleaned up by hand. The cron entry wraps it in `flock -n` for this reason.
+`daily-sync.js` reads `notion-page-map.json` at startup and writes it back at the end, so two overlapping runs each miss the other's new entries and create a second Notion page for the same contact — duplicates that then have to be cleaned up by hand.
 
-That protection only covers cron. **Running it manually while an hourly run is in flight bypasses nothing if you invoke `node daily-sync.js` directly** — use the same lock:
+It guards against this **itself**, on `/tmp/wa-daily-sync.lock`, so every entry point is covered — cron, a manual run, or both at once. There is deliberately no `flock` in the crontab: a wrapper would only protect the cron path, and it would fight the in-script lock over the same file.
 
 ```bash
-ssh ubuntu@43.173.12.98 "/usr/bin/flock -n /tmp/wa-daily-sync.lock -c 'cd /home/ubuntu/wa-crm && node daily-sync.js'"
+# safe at any time; exits immediately if a run is already going
+ssh ubuntu@43.173.12.98 "cd /home/ubuntu/wa-crm && node daily-sync.js"
 ```
+
+A blocked run logs `SYNC_SKIPPED_LOCKED` and exits **0** — a skip is not a failure, so don't alert on it. The lockfile holds the owner's pid; if that process is gone (crash, `kill -9`, reboot) the next run takes the lock over instead of blocking forever, so a leftover lockfile can't wedge the sync.
 
 ## Two behaviours worth knowing before changing anything
 

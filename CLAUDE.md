@@ -29,7 +29,7 @@ A Baileys-based listener runs on a VPS (`/home/ubuntu/wa-crm/listener.js`), writ
 
 Reference copies of the VPS scripts live in `vps/` (see `vps/README.md` for their roles, the JSON shapes they read/write, and how to deploy a change back up). They are copies — editing them here changes nothing until they're `scp`'d to the box.
 
-## Sync cadence (why hourly, and why `flock`)
+## Sync cadence (why hourly, and why the sync self-locks)
 
 Two different clocks, and confusing them is what makes the dashboard look broken:
 
@@ -38,9 +38,9 @@ Two different clocks, and confusing them is what makes the dashboard look broken
 
 So the number a user sees is only as fresh as the last sync, no matter how live the listener is.
 
-It runs **hourly under `flock -n`** (the filename is historical — it was daily until 2026-08-21). Hourly is not 24× the work: because the `daysChanged` push condition fires when a contact crosses its own day boundary, and those boundaries are spread across the clock, each contact flips exactly once per 24h either way. Measured on 833 contacts: ~34 writes per hourly run (peak hour 92, ~30s) versus ~833 in one daily batch (~5 min). Same daily total, lighter per run, and at most 1h stale instead of 24h.
+It runs **hourly** (the filename is historical — it was daily until 2026-08-21). Hourly is not 24× the work: because the `daysChanged` push condition fires when a contact crosses its own day boundary, and those boundaries are spread across the clock, each contact flips exactly once per 24h either way. Measured on 833 contacts: ~34 writes per hourly run (peak hour 92, ~30s) versus ~833 in one daily batch (~5 min). Same daily total, lighter per run, and at most 1h stale instead of 24h.
 
-`flock -n` is the important half. `daily-sync.js` has no internal locking: it reads `notion-page-map.json` at startup and writes it at the end, so two overlapping runs can each create a Notion page for the same new contact, leaving permanent duplicates. Use the same lock for manual runs — cron protection does nothing if you invoke `node daily-sync.js` directly.
+**`daily-sync.js` locks itself** on `/tmp/wa-daily-sync.lock` — no `flock` wrapper in the crontab, because a wrapper only protects the cron path and the collision that actually happens is a hand-run `node daily-sync.js` landing on top of an in-flight hourly run. The hazard is real: the script reads `notion-page-map.json` at startup and writes it at the end, so two overlapping runs each create a Notion page for the same new contact, leaving permanent duplicates. A blocked run prints `SYNC_SKIPPED_LOCKED` and exits 0, so a skip never looks like a cron failure. The lock stores the owner's pid and a run whose owner is dead (crash, `kill -9`, reboot) is taken over rather than blocking forever, so a stale lockfile can't wedge the sync.
 
 Changing the schedule: `crontab -l` / `crontab -e` on the VPS. A backup of the pre-change entry is at `/home/ubuntu/crontab.bak-*`.
 
@@ -64,9 +64,10 @@ node -e "const s=require('./store.json');const w=s.filter(e=>e.lastMessageTimest
 **Case A — `store.json` is current, Notion is behind.** The listener is fine; the sync just hasn't run since the data arrived. Run it by hand; it's idempotent:
 
 ```bash
-# use the lock — a manual run can otherwise collide with the hourly cron
-ssh ubuntu@43.173.12.98 "/usr/bin/flock -n /tmp/wa-daily-sync.lock -c 'cd /home/ubuntu/wa-crm && node daily-sync.js'"
+ssh ubuntu@43.173.12.98 "cd /home/ubuntu/wa-crm && node daily-sync.js"
 ```
+
+Safe to run any time — it self-locks, so if the hourly cron is mid-run this exits immediately with `SYNC_SKIPPED_LOCKED` instead of racing it.
 
 **Case B — `store.json` itself is stale (no messages for days).** The listener is connected but not decrypting. Confirm before re-pairing, because re-pairing is disruptive:
 
