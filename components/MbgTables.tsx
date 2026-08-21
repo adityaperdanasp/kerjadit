@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { SpmGroup, PettyCashRow, FinTable, PendingJobGroup, PendingJobItem } from '@/lib/sheets';
 import { PENDING_JOB_COLS } from '@/lib/sheets';
 
@@ -362,6 +363,24 @@ export function PendingJobTable({
   initialGroups: PendingJobGroup[];
   error: boolean;
 }) {
+  const router = useRouter();
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Writes go straight to the sheet, but this route's RSC payload stays in the client
+  // cache — so leaving /mbg and coming back would re-mount this table from a pre-write
+  // snapshot and look like the edits were lost. Refreshing clears that cached payload.
+  // Debounced because a single PIC edit or checkbox toggle shouldn't trigger a refetch
+  // of every other MBG tab's data. useState(initialGroups) ignores the new props, so an
+  // in-flight refresh never clobbers what's on screen.
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    refreshTimer.current = setTimeout(() => router.refresh(), 1500);
+  }, [router]);
+
+  useEffect(() => () => {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+  }, []);
+
   const [groups, setGroups] = useState(initialGroups);
   const [search, setSearch] = useState('');
   const [draftTitle, setDraftTitle] = useState('');
@@ -392,16 +411,19 @@ export function PendingJobTable({
     const done = !item.done;
     patchItem(groupName, item.id, { done });
     apiUpdateCell(item.sheetRow, PENDING_JOB_COLS.done, done ? 'TRUE' : 'FALSE');
+    scheduleRefresh();
   }
 
   function updatePic(groupName: string, item: PendingJobItem, pic: string) {
     patchItem(groupName, item.id, { pic });
     apiUpdateCell(item.sheetRow, PENDING_JOB_COLS.pic, pic);
+    scheduleRefresh();
   }
 
   function updateDueDate(groupName: string, item: PendingJobItem, dueDate: string) {
     patchItem(groupName, item.id, { dueDate: dueDate || null });
     apiUpdateCell(item.sheetRow, PENDING_JOB_COLS.dueDate, dueDate);
+    scheduleRefresh();
   }
 
   function removeJob(groupName: string, item: PendingJobItem) {
@@ -409,18 +431,21 @@ export function PendingJobTable({
       prev.map((g) => (g.group !== groupName ? g : { ...g, items: g.items.filter((t) => t.id !== item.id) }))
     );
     apiDeleteJob(item.sheetRow);
+    scheduleRefresh();
   }
 
   function renameGroup(oldName: string, newName: string) {
     const target = groups.find((g) => g.group === oldName);
     setGroups((prev) => prev.map((g) => (g.group !== oldName ? g : { ...g, group: newName })));
     target?.items.forEach((item) => apiUpdateCell(item.sheetRow, PENDING_JOB_COLS.group, newName));
+    scheduleRefresh();
   }
 
   async function addJob(groupName: string, text: string) {
     const job = await apiCreateJob(groupName, text);
     if (!job) return false;
     setGroups((prev) => prev.map((g) => (g.group !== groupName ? g : { ...g, items: [...g.items, job] })));
+    scheduleRefresh();
     return true;
   }
 
@@ -439,6 +464,7 @@ export function PendingJobTable({
       setGroups((prev) => [...prev, { group: title, items: [job] }]);
       setDraftTitle('');
       setDraftText('');
+      scheduleRefresh();
     }
     setAdding(false);
   }
