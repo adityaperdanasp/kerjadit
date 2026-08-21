@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# service-account keys & build artifacts that landed in this folder by hand.
+# kerjadit-sheets-*.json is a LIVE Google private key — the same credential the
+# app reads from GOOGLE_SA_* env vars. It must never be committed.
+*-sheets-*.json
+gcp-*.json
+service-account*.json
+*.apk
+*android-package*.zip

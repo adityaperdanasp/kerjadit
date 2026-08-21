@@ -27,6 +27,93 @@ A Baileys-based listener runs on a VPS (`/home/ubuntu/wa-crm/listener.js`), writ
 
 **2026-08-21 incident** (context for why the two-signal check above exists): the listener's WhatsApp session hit a Signal Protocol ratchet desync ("Over 2000 messages into the future"), which made it silently fail to decrypt every incoming message for about a week while the process itself — and its heartbeat — stayed alive and green. Root cause traced to `listener.js`'s reconnect loop: on every `connection.update` close event it called `useMultiFileAuthState(AUTH_DIR)` fresh and built a brand-new socket without ever closing the previous one, risking two sockets racing against the same on-disk session mid-write. Fixed by loading auth state once in `main()` and reusing it across reconnects, explicitly ending the old socket before creating a new one, and guarding against overlapping reconnect timers. Recovery used `fetch-history.js` (a separate one-shot Baileys history-sync script already in the VPS toolkit, not `listener.js` itself) to re-pair via a fresh QR scan and backfill the missed week into `store.json` before restarting the live listener.
 
+Reference copies of the VPS scripts live in `vps/` (see `vps/README.md` for their roles, the JSON shapes they read/write, and how to deploy a change back up). They are copies — editing them here changes nothing until they're `scp`'d to the box.
+
+## Runbook: "the days-since-chat number looks wrong"
+
+This has bitten twice for different reasons, and the two look identical from the dashboard. Always find out **which layer** is stale before changing anything. The chain is:
+
+```
+WhatsApp → listener.js → store.json → daily-sync.js → clusters.json + Notion → dashboard
+```
+
+Work backwards from the truth. `store.json` is the source of truth for "when did we last hear from this person":
+
+```bash
+ssh ubuntu@43.173.12.98
+cd /home/ubuntu/wa-crm
+# newest message we captured across ALL contacts — if this is days old, the listener is deaf
+node -e "const s=require('./store.json');const w=s.filter(e=>e.lastMessageTimestamp).sort((a,b)=>b.lastMessageTimestamp-a.lastMessageTimestamp);console.log(w.slice(0,5).map(e=>[e.jid,e.name,new Date(e.lastMessageTimestamp*1000).toISOString()]))"
+```
+
+**Case A — `store.json` is current, Notion is behind.** The listener is fine; the sync just hasn't run since the data arrived. Run it by hand; it's idempotent:
+
+```bash
+ssh ubuntu@43.173.12.98 "cd /home/ubuntu/wa-crm && node daily-sync.js"
+```
+
+**Case B — `store.json` itself is stale (no messages for days).** The listener is connected but not decrypting. Confirm before re-pairing, because re-pairing is disruptive:
+
+```bash
+sudo systemctl is-active wa-listener          # will say "active" even when broken — not proof of health
+sudo grep -c 'Over 2000 messages into the future' /home/ubuntu/wa-crm/listener.log
+sudo tail -20 /home/ubuntu/wa-crm/listener.log   # repeated "Failed to decrypt message" = dead session
+```
+
+A non-zero, still-growing count of that Signal error means the session is unrecoverable and needs a fresh QR pair. **Recovery (needs the phone in hand):**
+
+```bash
+sudo systemctl stop wa-listener
+cd /home/ubuntu/wa-crm
+mv auth_info auth_info.corrupt-$(date +%Y%m%d-%H%M%S)   # quarantine, don't delete — it's the only rollback
+mkdir auth_info
+cp store.json store.json.bak-$(date +%Y%m%d-%H%M%S)
+rm -f qr.png
+setsid nohup node fetch-history.js > fetch-history-run.log 2>&1 < /dev/null &
+```
+
+Then `scp` `qr.png` down and scan it (WhatsApp → Settings → Linked Devices → Link a Device; log the stale "Adit WA Agent" entry out first). `fetch-history.js` backfills the gap and exits by itself — watch for `STORE_WRITTEN` in `fetch-history-run.log`, then:
+
+```bash
+sudo systemctl start wa-listener
+node daily-sync.js        # push the backfilled history to Notion; without this the dashboard stays stale
+```
+
+That last step is easy to forget: after a backfill, `store.json` is current but Notion still holds pre-backfill numbers until a sync runs. (`qr.png` is generated at `{ width: 1000 }` — the original 400px was too small to scan off a laptop screen.)
+
+**Case C — everything is current but one contact's number never moves.** That was the original bug: `daily-sync.js` recomputed days for everyone locally but only *pushed* to Notion when a message arrived, the cluster changed, or the name changed. A contact sitting mid-tier (day 3 of "Hot") could go a week with a frozen number. Fixed by adding `daysChanged` to the push condition — if the recomputed day count differs from the stored one, it now gets written. If numbers ever freeze again, check that condition first.
+
+## Runbook: reading VPS state safely
+
+`pkill -f fetch-history.js` over SSH **kills the SSH command itself** (the pattern matches the remote shell's own command line) and returns 255. Match on a bracketed pattern and kill by pid instead:
+
+```bash
+ssh ubuntu@43.173.12.98 "ps aux | grep '[f]etch-history.js' | awk '{print \$2}' | xargs -r kill"
+```
+
+Ad-hoc `node -e "…"` over SSH mangles quotes badly. For anything non-trivial, write the script locally, `scp` it up, run it, delete it. Password auth via `sshpass` works but is flaky under load; this machine also has a working SSH key for `ubuntu@43.173.12.98`, which is more reliable.
+
+## Runbook: dashboard-side gotchas
+
+**"I saved it but it disappeared when I came back."** Almost always the Next.js Router Cache, not data loss. Check the source of truth before touching code — for Pending Job that's the sheet, for the AI Briefing it's the Notion page:
+
+```bash
+# what the app actually reads for Pending Job (public CSV export, not the API)
+curl -s "https://docs.google.com/spreadsheets/d/1ogYGnj4HP5CthXg4nVZzh9l4CXpOcGEHn0jzJnJHcS8/export?format=csv&gid=956241155"
+```
+
+If the data is there but the UI is empty, it's caching. A hard reload proves it. Both halves are needed and each fixes a different cache: `revalidatePath()` in the write route (server data cache) and a debounced `router.refresh()` on the client (Router Cache). Adding only one leaves the bug half-alive.
+
+**Schema changes in Notion** go through `notion.dataSources.update({ data_source_id, properties })`. `notion.databases.update` silently ignores a `properties` payload on this workspace — it logs `unknown parameters were ignored` and returns a response with no `properties`, which looks like a crash but is really the wrong API. Data-source id lives in `NOTION_DATA_SOURCE_ID`; the "System Status" page's is `f9fc4fad-2672-4150-8c33-4f639618f180`.
+
+**A Notion `rich_text` property caps at 2000 characters per block.** The AI Briefing JSON is chunked at ~1900 (`chunkText`) and re-joined on read. Anything else stored as JSON in Notion needs the same treatment.
+
+## Credentials hygiene
+
+`.gitignore` blocks `*-sheets-*.json`, `gcp-*.json`, `service-account*.json`. This is not theoretical: a **live** Google service-account private key (`kerjadit-sheets-7d7d7211e7c3.json`, the same credential the app reads from `GOOGLE_SA_*`) has been sitting untracked in this folder, along with a built APK and its zip. They were one `git add -A` away from being published. Stage files by name; never `git add -A` in this repo.
+
+VPS access is password-based SSH (`ubuntu@43.173.12.98`) with the credential kept outside this repo. Nothing in `vps/` contains a secret — those scripts read everything from `process.env` via the VPS's own `.env`, which is deliberately not copied here.
+
 ## Auth
 
 Single shared password, not per-user accounts. `proxy.ts` gates every route except a hardcoded `PUBLIC_PATHS` allowlist (`/login`, `/api/login`, icon/manifest routes — these must stay public so iOS/browsers can fetch favicons/manifest before login) via a `session` cookie checked against `SESSION_TOKEN`. `DASHBOARD_PASSWORD` is the login form password; `SESSION_TOKEN` is the resulting cookie value — both live only in env vars, no hashing/db.
