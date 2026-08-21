@@ -215,13 +215,17 @@ export const INDUSTRY_OPTIONS = [
 
 const LISTENER_HEARTBEAT_PAGE_ID = '3c044c46-bc10-8165-b205-d97cd128d5ac';
 
-export async function fetchListenerStatus(): Promise<{ lastHeartbeat: string | null }> {
+export async function fetchListenerStatus(): Promise<{
+  lastHeartbeat: string | null;
+  lastMessageCaptured: string | null;
+}> {
   try {
     const page: any = await notion.pages.retrieve({ page_id: LISTENER_HEARTBEAT_PAGE_ID });
-    const start = page.properties?.['Last Heartbeat']?.date?.start || null;
-    return { lastHeartbeat: start };
+    const lastHeartbeat = page.properties?.['Last Heartbeat']?.date?.start || null;
+    const lastMessageCaptured = page.properties?.['Last Message Captured']?.date?.start || null;
+    return { lastHeartbeat, lastMessageCaptured };
   } catch {
-    return { lastHeartbeat: null };
+    return { lastHeartbeat: null, lastMessageCaptured: null };
   }
 }
 
