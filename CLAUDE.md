@@ -29,6 +29,21 @@ A Baileys-based listener runs on a VPS (`/home/ubuntu/wa-crm/listener.js`), writ
 
 Reference copies of the VPS scripts live in `vps/` (see `vps/README.md` for their roles, the JSON shapes they read/write, and how to deploy a change back up). They are copies — editing them here changes nothing until they're `scp`'d to the box.
 
+## Sync cadence (why hourly, and why `flock`)
+
+Two different clocks, and confusing them is what makes the dashboard look broken:
+
+- **`listener.js` is real-time** — always-on socket, captures messages the moment they arrive into `store.json` on the VPS.
+- **`daily-sync.js` is the bridge to Notion**, and only what it writes ever reaches the dashboard.
+
+So the number a user sees is only as fresh as the last sync, no matter how live the listener is.
+
+It runs **hourly under `flock -n`** (the filename is historical — it was daily until 2026-08-21). Hourly is not 24× the work: because the `daysChanged` push condition fires when a contact crosses its own day boundary, and those boundaries are spread across the clock, each contact flips exactly once per 24h either way. Measured on 833 contacts: ~34 writes per hourly run (peak hour 92, ~30s) versus ~833 in one daily batch (~5 min). Same daily total, lighter per run, and at most 1h stale instead of 24h.
+
+`flock -n` is the important half. `daily-sync.js` has no internal locking: it reads `notion-page-map.json` at startup and writes it at the end, so two overlapping runs can each create a Notion page for the same new contact, leaving permanent duplicates. Use the same lock for manual runs — cron protection does nothing if you invoke `node daily-sync.js` directly.
+
+Changing the schedule: `crontab -l` / `crontab -e` on the VPS. A backup of the pre-change entry is at `/home/ubuntu/crontab.bak-*`.
+
 ## Runbook: "the days-since-chat number looks wrong"
 
 This has bitten twice for different reasons, and the two look identical from the dashboard. Always find out **which layer** is stale before changing anything. The chain is:
@@ -49,7 +64,8 @@ node -e "const s=require('./store.json');const w=s.filter(e=>e.lastMessageTimest
 **Case A — `store.json` is current, Notion is behind.** The listener is fine; the sync just hasn't run since the data arrived. Run it by hand; it's idempotent:
 
 ```bash
-ssh ubuntu@43.173.12.98 "cd /home/ubuntu/wa-crm && node daily-sync.js"
+# use the lock — a manual run can otherwise collide with the hourly cron
+ssh ubuntu@43.173.12.98 "/usr/bin/flock -n /tmp/wa-daily-sync.lock -c 'cd /home/ubuntu/wa-crm && node daily-sync.js'"
 ```
 
 **Case B — `store.json` itself is stale (no messages for days).** The listener is connected but not decrypting. Confirm before re-pairing, because re-pairing is disruptive:
