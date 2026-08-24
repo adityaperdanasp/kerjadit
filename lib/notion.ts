@@ -3,6 +3,8 @@ import { Client } from '@notionhq/client';
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const DATA_SOURCE_ID = process.env.NOTION_DATA_SOURCE_ID!;
 const TASKS_DATA_SOURCE_ID = process.env.NOTION_TASKS_DATA_SOURCE_ID!;
+export const AIRMOON_DATA_SOURCE_ID = process.env.NOTION_AIRMOON_DATA_SOURCE_ID!;
+export const FISIOTERAPI_DATA_SOURCE_ID = process.env.NOTION_FISIOTERAPI_DATA_SOURCE_ID!;
 
 export type Contact = {
   id: string;
@@ -141,12 +143,12 @@ function pageToTask(page: any): Task {
   };
 }
 
-export async function fetchAllTasks(): Promise<Task[]> {
+export async function fetchAllTasks(dataSourceId: string = TASKS_DATA_SOURCE_ID): Promise<Task[]> {
   const results: Task[] = [];
   let cursor: string | undefined = undefined;
   do {
     const res: any = await notion.dataSources.query({
-      data_source_id: TASKS_DATA_SOURCE_ID,
+      data_source_id: dataSourceId,
       start_cursor: cursor,
       page_size: 100,
       sorts: [{ timestamp: 'created_time', direction: 'ascending' }],
@@ -157,9 +159,13 @@ export async function fetchAllTasks(): Promise<Task[]> {
   return results;
 }
 
-export async function createTask(text: string, group: string): Promise<Task> {
+export async function createTask(
+  text: string,
+  group: string,
+  dataSourceId: string = TASKS_DATA_SOURCE_ID
+): Promise<Task> {
   const page: any = await notion.pages.create({
-    parent: { data_source_id: TASKS_DATA_SOURCE_ID } as any,
+    parent: { data_source_id: dataSourceId } as any,
     properties: {
       Task: { title: [{ text: { content: text.slice(0, 1900) } }] },
       Done: { checkbox: false },

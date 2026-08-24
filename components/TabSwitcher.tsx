@@ -8,6 +8,8 @@ import ListenerStatusBadge from './ListenerStatusBadge';
 const TABS = [
   { href: '/sirka', label: 'Sirka' },
   { href: '/mbg', label: 'MBG' },
+  { href: '/airmoon', label: 'Airmoon' },
+  { href: '/fisioterapi', label: 'Fisioterapi' },
 ];
 
 export default function TabSwitcher() {
@@ -25,39 +27,42 @@ export default function TabSwitcher() {
         gap: 12,
       }}
     >
-      <div
-        style={{
-          display: 'inline-flex',
-          gap: 2,
-          background: 'var(--panel-2)',
-          borderRadius: 999,
-          padding: 3,
-        }}
-      >
-        {TABS.map((tab) => {
-          const active = pathname?.startsWith(tab.href);
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              style={{
-                padding: '6px 18px',
-                fontSize: 13,
-                fontWeight: 700,
-                borderRadius: 999,
-                color: active ? 'var(--text)' : 'var(--text-faint)',
-                background: active ? 'var(--panel)' : 'transparent',
-                boxShadow: active ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
-                textDecoration: 'none',
-                transition: 'background .15s, color .15s',
-              }}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
+      <div style={{ overflowX: 'auto', flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            display: 'inline-flex',
+            gap: 2,
+            background: 'var(--panel-2)',
+            borderRadius: 999,
+            padding: 3,
+          }}
+        >
+          {TABS.map((tab) => {
+            const active = pathname?.startsWith(tab.href);
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                style={{
+                  padding: '6px 18px',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  borderRadius: 999,
+                  color: active ? 'var(--text)' : 'var(--text-faint)',
+                  background: active ? 'var(--panel)' : 'transparent',
+                  boxShadow: active ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
+                  textDecoration: 'none',
+                  transition: 'background .15s, color .15s',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+        </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
         <ListenerStatusBadge />
         <ThemeToggle />
       </div>

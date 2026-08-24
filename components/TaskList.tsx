@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Contact, Task } from '@/lib/notion';
 
-async function apiCreate(text: string, group: string): Promise<Task | null> {
-  const res = await fetch('/api/tasks', {
+async function apiCreate(apiBase: string, text: string, group: string): Promise<Task | null> {
+  const res = await fetch(apiBase, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text, group }),
@@ -13,16 +13,16 @@ async function apiCreate(text: string, group: string): Promise<Task | null> {
   return data.ok ? data.task : null;
 }
 
-async function apiUpdate(id: string, fields: Record<string, unknown>) {
-  await fetch(`/api/tasks/${id}`, {
+async function apiUpdate(apiBase: string, id: string, fields: Record<string, unknown>) {
+  await fetch(`${apiBase}/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(fields),
   });
 }
 
-async function apiDelete(id: string) {
-  await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+async function apiDelete(apiBase: string, id: string) {
+  await fetch(`${apiBase}/${id}`, { method: 'DELETE' });
 }
 
 function todayStr() {
@@ -32,9 +32,13 @@ function todayStr() {
 export default function TaskList({
   initialTasks,
   contacts,
+  apiBase = '/api/tasks',
+  allowContactLink = true,
 }: {
   initialTasks: Task[];
   contacts: Contact[];
+  apiBase?: string;
+  allowContactLink?: boolean;
 }) {
   const [tasks, setTasks] = useState(initialTasks);
   const [draftGroup, setDraftGroup] = useState('');
@@ -72,7 +76,7 @@ export default function TaskList({
     const g = group.trim();
     const t = text.trim();
     if (!g || !t) return false;
-    const task = await apiCreate(t, g);
+    const task = await apiCreate(apiBase, t, g);
     if (task) setTasks((prev) => [...prev, task]);
     return !!task;
   }
@@ -98,12 +102,12 @@ export default function TaskList({
 
   function handleFieldChange(id: string, fields: Record<string, unknown>) {
     patchLocal(id, fields as Partial<Task>);
-    apiUpdate(id, fields);
+    apiUpdate(apiBase, id, fields);
   }
 
   function removeTask(id: string) {
     setTasks((prev) => prev.filter((t) => t.id !== id));
-    apiDelete(id);
+    apiDelete(apiBase, id);
   }
 
   return (
@@ -222,6 +226,7 @@ export default function TaskList({
                   task={t}
                   contact={t.contactId ? contactsById.get(t.contactId) : undefined}
                   contacts={contacts}
+                  allowContactLink={allowContactLink}
                   onFieldChange={handleFieldChange}
                   onRemove={removeTask}
                 />
@@ -326,12 +331,14 @@ function TaskItem({
   task,
   contact,
   contacts,
+  allowContactLink,
   onFieldChange,
   onRemove,
 }: {
   task: Task;
   contact?: Contact;
   contacts: Contact[];
+  allowContactLink: boolean;
   onFieldChange: (id: string, fields: Record<string, unknown>) => void;
   onRemove: (id: string) => void;
 }) {
@@ -410,6 +417,7 @@ function TaskItem({
         </div>
       </div>
 
+      {allowContactLink && (
       <div style={{ marginTop: 3 }}>
         {contact ? (
           <span
@@ -505,6 +513,7 @@ function TaskItem({
           </button>
         )}
       </div>
+      )}
     </li>
   );
 }
