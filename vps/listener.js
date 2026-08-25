@@ -84,6 +84,62 @@ function getOrCreateEntry(jid) {
   return entry;
 }
 
+// WhatsApp exposes two ID formats for the same person: a privacy "@lid" and the
+// real "@s.whatsapp.net" phone-number JID. A contact can switch to messaging
+// under a fresh @lid at any time — without this, that becomes a second,
+// permanently disconnected entry (their history stays frozen on the old jid
+// forever, which is what daily-sync.js reads, so the dashboard shows a stale
+// days-since-chat even though they messaged five minutes ago). contacts.upsert/
+// contacts.update carry the authoritative mapping (c.lid / c.jid) whenever
+// WhatsApp reveals it; fold the two entries together the moment we learn of it,
+// same approach fetch-history.js already uses for its one-shot backfill.
+function mergeJids(jidA, jidB) {
+  if (!jidA || !jidB || jidA === jidB) return false;
+  if (isGroupOrBroadcast(jidA) || isGroupOrBroadcast(jidB)) return false;
+
+  const entryA = storeByJid.get(jidA);
+  const entryB = storeByJid.get(jidB);
+
+  if (entryA && entryB && entryA !== entryB) {
+    // Keep the @s.whatsapp.net entry as the survivor so notion-page-map.json
+    // (keyed by entry.jid on the daily-sync side) still resolves to the
+    // existing Notion page instead of creating a duplicate.
+    const survivor = entryA.jid.endsWith('@s.whatsapp.net')
+      ? entryA
+      : entryB.jid.endsWith('@s.whatsapp.net')
+      ? entryB
+      : entryA;
+    const loser = survivor === entryA ? entryB : entryA;
+
+    survivor.name = survivor.name || loser.name;
+    survivor.allJids = [...new Set([...survivor.allJids, ...loser.allJids])];
+    survivor.messages = survivor.messages
+      .concat(loser.messages)
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .slice(-MAX_MESSAGES_PER_CONTACT);
+    survivor.lastMessageTimestamp =
+      Math.max(survivor.lastMessageTimestamp || 0, loser.lastMessageTimestamp || 0) || null;
+    if (!survivor.businessProfile && loser.businessProfile) survivor.businessProfile = loser.businessProfile;
+
+    for (const j of loser.allJids) storeByJid.set(j, survivor);
+    const idx = store.indexOf(loser);
+    if (idx !== -1) store.splice(idx, 1);
+    console.log('MERGED_JIDS', loser.allJids.join(','), '->', survivor.jid, survivor.name);
+    return true;
+  }
+  if (entryA && !entryB) {
+    storeByJid.set(jidB, entryA);
+    if (!entryA.allJids.includes(jidB)) entryA.allJids.push(jidB);
+    return true;
+  }
+  if (!entryA && entryB) {
+    storeByJid.set(jidA, entryB);
+    if (!entryB.allJids.includes(jidA)) entryB.allJids.push(jidA);
+    return true;
+  }
+  return false;
+}
+
 async function main() {
   // Loaded ONCE and kept in memory for the life of the process — re-reading auth
   // state from disk on every reconnect (the old behavior) risked loading a session
@@ -149,6 +205,8 @@ async function main() {
       let changed = false;
       for (const c of list) {
         if (isGroupOrBroadcast(c.id)) continue;
+        if (mergeJids(c.id, c.lid)) changed = true;
+        if (mergeJids(c.id, c.jid)) changed = true;
         const entry = getOrCreateEntry(c.id);
         const name = c.name || c.notify || c.verifiedName;
         if (name && !entry.name) {
@@ -163,6 +221,8 @@ async function main() {
       let changed = false;
       for (const c of list) {
         if (isGroupOrBroadcast(c.id)) continue;
+        if (mergeJids(c.id, c.lid)) changed = true;
+        if (mergeJids(c.id, c.jid)) changed = true;
         const entry = getOrCreateEntry(c.id);
         const name = c.name || c.notify || c.verifiedName;
         if (name && name !== entry.name) {

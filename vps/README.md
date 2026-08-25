@@ -22,6 +22,7 @@ Always `node -c` before restarting — a syntax error takes the listener down un
 | `listener.js` | `wa-listener.service` (systemd, always on) | Long-lived Baileys socket. Read-only: never sends, never marks read, never sets presence. Appends live messages/contact names to `store.json` and posts the Notion heartbeat every 3 min. Does **not** write contact rows to Notion. |
 | `daily-sync.js` | cron hourly (self-locking) | Reads `store.json`, recomputes days-since-chat and Hot/Warm/Cold for every contact, writes the changed ones to Notion. This is the only thing that moves contact data into Notion — the listener never writes contact rows. Name is historical: it runs hourly now, see CLAUDE.md. |
 | `fetch-history.js` | manual, one-shot | Re-pairs via QR and bulk-imports chat history into `store.json`. Used for first setup and for recovering a gap after a broken session. Exits on its own once history stops arriving. |
+| `merge-lid-duplicates.js` | manual, one-shot | Folds `store.json` entries that got split across a phone JID and a WhatsApp `@lid` back together, using `sock.onWhatsApp()` for the authoritative mapping (not name-matching). Augments the existing store in place — unlike `fetch-history.js` it never rebuilds from a fresh history sync, so nothing already captured can be dropped by an incomplete resync. Must run with `wa-listener.service` stopped. See the 2026-08-25 incident in CLAUDE.md. |
 
 ## Files on the VPS that are deliberately NOT copied here
 
