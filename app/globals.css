@@ -150,3 +150,22 @@ body {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
+
+/* Airmoon-only theme: matches Airmoon's own brand (deep teal + crescent
+   moon), scoped to .airmoon-theme so it never leaks elsewhere. */
+.airmoon-theme {
+  --airmoon-deep: #0c332f;
+  --airmoon-mid: #0f4842;
+  --airmoon-accent: #5fd9c4;
+}
+
+.airmoon-hero {
+  background:
+    radial-gradient(650px 650px at 85% -10%, rgba(95, 217, 196, 0.18) 0%, transparent 60%),
+    radial-gradient(500px 500px at 15% 110%, rgba(95, 217, 196, 0.12) 0%, transparent 60%),
+    linear-gradient(160deg, var(--airmoon-mid) 0%, var(--airmoon-deep) 100%);
+  border-radius: 28px;
+  padding: clamp(28px, 6vw, 48px) clamp(20px, 5vw, 40px);
+  margin-bottom: 22px;
+  text-align: center;
+}
