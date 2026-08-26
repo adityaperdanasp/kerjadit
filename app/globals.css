@@ -105,3 +105,48 @@ body {
   field-sizing: content;
   min-width: 100%;
 }
+
+/* MBG-only theme: distinct from the rest of the app on purpose (see CLAUDE.md).
+   Scoped to .mbg-theme so it never leaks into Sirka/Airmoon/Fisioterapi. */
+.mbg-theme {
+  --mbg-accent-a: #6366f1;
+  --mbg-accent-b: #f0883e;
+  --mbg-accent-text: #4338ca;
+  --mbg-glass-bg: rgba(255, 255, 255, 0.6);
+  --mbg-glass-border: rgba(255, 255, 255, 0.7);
+  --mbg-glass-shadow: 0 8px 32px rgba(76, 29, 149, 0.1);
+  --mbg-bg-gradient:
+    radial-gradient(900px 500px at -10% -15%, #c7d2fe 0%, transparent 55%),
+    radial-gradient(800px 480px at 110% -5%, #fed7aa 0%, transparent 55%),
+    radial-gradient(700px 460px at 50% 115%, #ddd6fe 0%, transparent 55%);
+}
+:root[data-theme="dark"] .mbg-theme {
+  --mbg-accent-a: #818cf8;
+  --mbg-accent-b: #f0883e;
+  --mbg-accent-text: #c7d2fe;
+  --mbg-glass-bg: rgba(23, 29, 44, 0.6);
+  --mbg-glass-border: rgba(255, 255, 255, 0.08);
+  --mbg-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  --mbg-bg-gradient:
+    radial-gradient(900px 500px at -10% -15%, #2b2a5c 0%, transparent 55%),
+    radial-gradient(800px 480px at 110% -5%, #4a2f14 0%, transparent 55%),
+    radial-gradient(700px 460px at 50% 115%, #2a1f4a 0%, transparent 55%);
+}
+
+.mbg-hero {
+  background: var(--mbg-bg-gradient);
+  border-radius: 28px;
+  padding: clamp(28px, 6vw, 48px) clamp(20px, 5vw, 40px);
+  margin-bottom: 22px;
+  position: relative;
+  overflow: hidden;
+}
+
+.mbg-glass-card {
+  background: var(--mbg-glass-bg) !important;
+  border: 1px solid var(--mbg-glass-border) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--mbg-glass-shadow);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}

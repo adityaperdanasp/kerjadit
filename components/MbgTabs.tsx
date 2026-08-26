@@ -39,9 +39,9 @@ function pillStyle(active: boolean): React.CSSProperties {
     border: 'none',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
-    color: active ? 'var(--text)' : 'var(--text-faint)',
-    background: active ? 'var(--panel)' : 'transparent',
-    boxShadow: active ? '0 1px 3px rgba(0,0,0,.08)' : 'none',
+    color: active ? '#fff' : 'var(--text-faint)',
+    background: active ? 'linear-gradient(135deg, var(--mbg-accent-a), var(--mbg-accent-b))' : 'transparent',
+    boxShadow: active ? '0 2px 8px rgba(99,102,241,.35)' : 'none',
   };
 }
 
@@ -80,7 +80,10 @@ export default function MbgTabs({
           display: 'inline-flex',
           flexWrap: 'wrap',
           gap: 2,
-          background: 'var(--panel-2)',
+          background: 'var(--mbg-glass-bg)',
+          border: '1px solid var(--mbg-glass-border)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
           borderRadius: 999,
           padding: 3,
           marginBottom: 16,

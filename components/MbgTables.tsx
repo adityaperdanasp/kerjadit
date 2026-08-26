@@ -111,7 +111,7 @@ function NotaLink({ url }: { url: string }) {
 
 export function SpmMonthTable({ group }: { group: SpmGroup }) {
   return (
-    <div style={panelStyle}>
+    <div style={panelStyle} className="mbg-glass-card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <h2 style={{ fontSize: 13, fontWeight: 800, margin: 0, color: 'var(--text)' }}>{group.label}</h2>
         <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{group.rows.length} transaksi</span>
@@ -174,7 +174,7 @@ function FinTableCard({ table }: { table: FinTable }) {
   const tall = table.rows.length > 15;
 
   return (
-    <div style={panelStyle}>
+    <div style={panelStyle} className="mbg-glass-card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <h2 style={{ fontSize: 13, fontWeight: 800, margin: 0, color: 'var(--text)' }}>{table.title}</h2>
         <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{table.rows.length} baris</span>
@@ -238,7 +238,7 @@ function FinTableCard({ table }: { table: FinTable }) {
 export function FinancialStatementView({ tables, error }: { tables: FinTable[]; error: boolean }) {
   if (error) {
     return (
-      <div style={panelStyle}>
+      <div style={panelStyle} className="mbg-glass-card">
         <p style={{ fontSize: 12, color: 'var(--red)' }}>Gagal ambil data Financial Statement.</p>
       </div>
     );
@@ -280,7 +280,7 @@ export function PettyCashTable({
   error: boolean;
 }) {
   return (
-    <div style={panelStyle}>
+    <div style={panelStyle} className="mbg-glass-card">
       <h2 style={{ fontSize: 13, fontWeight: 800, margin: '0 0 10px', color: 'var(--text)' }}>{title}</h2>
       {error ? (
         <p style={{ fontSize: 12, color: 'var(--red)' }}>Gagal ambil data Petty Cash.</p>
