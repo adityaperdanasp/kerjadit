@@ -169,3 +169,42 @@ body {
   margin-bottom: 22px;
   text-align: center;
 }
+
+/* Fisioterapi-only theme: matches Pulih Fisioterapi's own clean clinic
+   branding (white + medical green), scoped to .fisioterapi-theme. */
+.fisioterapi-theme {
+  --fisio-navy: #16283f;
+  --fisio-teal: #1c6b82;
+  --fisio-green: #1a9d5c;
+  --fisio-green-bg: #e3f6ec;
+}
+:root[data-theme="dark"] .fisioterapi-theme {
+  --fisio-navy: #eef1f7;
+  --fisio-teal: #7fd6c9;
+  --fisio-green: #34c77f;
+  --fisio-green-bg: rgba(52, 199, 127, 0.14);
+}
+
+.fisioterapi-hero {
+  background: linear-gradient(180deg, var(--fisio-green-bg) 0%, var(--panel) 65%);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: clamp(28px, 6vw, 48px) clamp(20px, 5vw, 40px);
+  margin-bottom: 22px;
+  text-align: center;
+}
+
+.fisioterapi-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--fisio-green-bg);
+  color: var(--fisio-green);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
