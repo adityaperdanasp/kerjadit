@@ -88,20 +88,21 @@ export default function Board({
   }
 
   return (
-    <div style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(16px,4vw,24px) clamp(14px,4vw,26px) 60px' }}>
-      <div style={{ marginBottom: 22, textAlign: 'center' }}>
+    <div className="sirka-theme" style={{ maxWidth: 1280, margin: '0 auto', padding: 'clamp(16px,4vw,24px) clamp(14px,4vw,26px) 60px' }}>
+      <div className="sirka-hero">
+        <SirkaMark />
         <h1
           style={{
-            fontSize: 'clamp(22px, 6vw, 30px)',
+            fontSize: 'clamp(26px, 7vw, 36px)',
             fontWeight: 800,
             margin: 0,
-            color: 'var(--text)',
+            color: 'var(--sirka-orange)',
             letterSpacing: '-.01em',
           }}
         >
-          Pekerjaan 2026
+          Sirka
         </h1>
-        <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>
+        <span style={{ fontSize: 13.5, color: 'var(--text-faint)' }}>
           Drag kontak ke kolom status untuk mulai kelola deal
         </span>
       </div>
@@ -435,6 +436,26 @@ function AiBriefing({
         </div>
       )}
     </div>
+  );
+}
+
+function SirkaMark() {
+  const dots = 12;
+  return (
+    <svg width="34" height="34" viewBox="0 0 34 34" style={{ display: 'block', margin: '0 auto 12px' }}>
+      {Array.from({ length: dots }).map((_, i) => {
+        const angle = (i / dots) * Math.PI * 2;
+        const r = 12;
+        // Rounded to a fixed precision so the server-rendered string and the
+        // client-computed number always serialize identically — raw
+        // Math.cos/sin output can differ in the last float digit between
+        // Node's SSR and the browser, which trips a hydration mismatch.
+        const cx = Number((17 + r * Math.cos(angle)).toFixed(2));
+        const cy = Number((17 + r * Math.sin(angle)).toFixed(2));
+        const size = 1.5 + (i % 3) * 0.7;
+        return <circle key={i} cx={cx} cy={cy} r={size} fill="var(--sirka-orange)" opacity={0.4 + (i % 4) * 0.15} />;
+      })}
+    </svg>
   );
 }
 

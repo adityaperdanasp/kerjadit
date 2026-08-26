@@ -194,6 +194,29 @@ body {
   text-align: center;
 }
 
+/* Sirka-only theme: Sirka's own warm-orange brand, scoped to
+   .sirka-theme so it never leaks into the other tabs. */
+.sirka-theme {
+  --sirka-orange: #e8752b;
+  --sirka-orange-2: #f4a462;
+}
+:root[data-theme="dark"] .sirka-theme {
+  --sirka-orange: #f0883e;
+  --sirka-orange-2: #f5b27a;
+}
+
+.sirka-hero {
+  background:
+    radial-gradient(700px 500px at 90% -10%, rgba(232, 117, 43, 0.16) 0%, transparent 60%),
+    radial-gradient(600px 450px at 0% 110%, rgba(244, 164, 98, 0.14) 0%, transparent 60%),
+    var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: clamp(28px, 6vw, 48px) clamp(20px, 5vw, 40px);
+  margin-bottom: 22px;
+  text-align: center;
+}
+
 .fisioterapi-badge {
   display: inline-flex;
   align-items: center;
